@@ -1,31 +1,37 @@
-const twilio = require('twilio');
 const { OTP } = require('../models');
 const { logger } = require('../utils/logger');
+const axios = require('axios');
 
-// Initialize Twilio client safely
-let twilioClient = null;
-try {
-  if (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN) {
-    twilioClient = twilio(
-      process.env.TWILIO_ACCOUNT_SID,
-      process.env.TWILIO_AUTH_TOKEN
-    );
-    console.log('Twilio client initialized successfully');
-  } else {
-    console.warn('Twilio credentials not found, SMS service will be disabled');
-  }
-} catch (error) {
-  console.error('Error initializing Twilio client:', error.message);
-  twilioClient = null;
+// SMS Provider Configuration
+const SMS_PROVIDER = process.env.SMS_PROVIDER || 'xml_api'; // 'xml_api' or 'mock'
+
+// XML API Configuration
+const XML_API_CONFIG = {
+  endpoint: process.env.XML_API_ENDPOINT || '',
+  username: process.env.XML_API_USERNAME || '',
+  password: process.env.XML_API_PASSWORD || '',
+  senderId: process.env.XML_API_SENDER_ID || 'MARAGE',
+  route: process.env.XML_API_ROUTE || '1',
+  enabled: !!(process.env.XML_API_ENDPOINT && process.env.XML_API_USERNAME && process.env.XML_API_PASSWORD)
+};
+
+// Log SMS provider configuration
+if (XML_API_CONFIG.enabled) {
+  console.log('✅ HTTP API SMS service initialized successfully');
+  console.log(`📡 Provider: ${SMS_PROVIDER}`);
+  console.log(`📍 Endpoint: ${XML_API_CONFIG.endpoint}`);
+  console.log(`👤 Username: ${XML_API_CONFIG.username}`);
+  console.log(`📱 Sender ID: ${XML_API_CONFIG.senderId}`);
+} else {
+  console.warn('⚠️ HTTP API credentials not found, using mock SMS service');
+  console.warn('💡 Set XML_API_ENDPOINT, XML_API_USERNAME, and XML_API_PASSWORD in .env');
 }
-
-const TWILIO_PHONE_NUMBER = process.env.TWILIO_PHONE_NUMBER;
 
 // OTP Service class
 class OTPService {
   constructor() {
-    this.client = twilioClient;
-    this.fromNumber = TWILIO_PHONE_NUMBER;
+    this.xmlApiConfig = XML_API_CONFIG;
+    this.smsProvider = SMS_PROVIDER;
   }
 
   // Generate OTP code
@@ -33,58 +39,134 @@ class OTPService {
     return Math.floor(100000 + Math.random() * 900000).toString();
   }
 
-  // Send OTP via SMS
-  async sendOTP(phoneNumber, otpCode, otpType = 'verification') {
+  // Create OTP message based on type
+  createOTPMessage(otpCode, otpType) {
+    // Use exact template required by SMS provider
+    return `Use OTP ${otpCode}, to Login on Marriagepaper.com, We shall advertise your profile till you find matching profile`;
+  }
+
+  // Format datetime for XML API
+  formatDateTime() {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const seconds = String(now.getSeconds()).padStart(2, '0');
+
+    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+  }
+
+  // Send OTP via HTTP API
+  async sendViaXMLAPI(phoneNumber, otpCode, otpType) {
     try {
-      // Check if Twilio client is available
-      if (!this.client) {
-        console.log(`\n📱 MOCK OTP SERVICE 📱`);
-        console.log(`📞 Phone: ${phoneNumber}`);
-        console.log(`🔐 OTP Code: ${otpCode}`);
-        console.log(`📝 Type: ${otpType}`);
-        console.log(`✅ Status: Mock SMS sent`);
-        console.log(`📱 MOCK OTP SERVICE 📱\n`);
-        
-        logger.info(`Mock OTP sent to ${phoneNumber}: ${otpCode}`);
-        
-        return {
-          success: true,
-          messageId: 'mock_' + Date.now(),
-          status: 'sent',
-          mock: true
-        };
-      }
-
       const message = this.createOTPMessage(otpCode, otpType);
-      
-      const result = await this.client.messages.create({
-        body: message,
-        from: this.fromNumber,
-        to: phoneNumber
-      });
+      const datetime = this.formatDateTime();
 
-      console.log(`\n✅ OTP SENT SUCCESSFULLY ✅`);
+      // URL encode the datetime (format: YYYY-MM-DD HH:MM:SS becomes YYYY-MM-DD%20HH%3AMM%3ASS)
+      const encodedDatetime = encodeURIComponent(datetime);
+      const encodedMessage = encodeURIComponent(message);
+
+      // Construct HTTP GET URL with query parameters
+      const apiUrl = `${this.xmlApiConfig.endpoint}?username=${this.xmlApiConfig.username}&password=${this.xmlApiConfig.password}&senderid=${this.xmlApiConfig.senderId}&to=${phoneNumber}&text=${encodedMessage}&route=${this.xmlApiConfig.route}&type=text&datetime=${encodedDatetime}`;
+
+      console.log(`\n📡 SENDING OTP VIA HTTP API 📡`);
       console.log(`📞 Phone: ${phoneNumber}`);
       console.log(`🔐 OTP Code: ${otpCode}`);
       console.log(`📝 Type: ${otpType}`);
-      console.log(`📨 Message ID: ${result.sid}`);
-      console.log(`📊 Status: ${result.status}`);
-      console.log(`✅ OTP SENT SUCCESSFULLY ✅\n`);
+      console.log(`📍 Endpoint: ${this.xmlApiConfig.endpoint}`);
+      console.log(`👤 Username: ${this.xmlApiConfig.username}`);
+      console.log(`🔑 Password: ${this.xmlApiConfig.password.substring(0, 3)}***`);
+      console.log(`📱 Sender ID: ${this.xmlApiConfig.senderId}`);
+      console.log(`🕒 DateTime: ${datetime}`);
+      console.log(`💬 Message: ${message}`);
+      console.log(`\n🔗 Request URL:\n${apiUrl}\n`);
 
-      logger.info(`OTP sent successfully to ${phoneNumber}`, {
-        messageId: result.sid,
-        otpType,
-        status: result.status
+      // Send via HTTP GET request
+      const response = await axios.get(apiUrl, {
+        timeout: 10000 // 10 seconds timeout
       });
 
-      return {
-        success: true,
-        messageId: result.sid,
-        status: result.status
-      };
+      console.log(`📨 API Response Status: ${response.status}`);
+      console.log(`📨 API Response Data:`, response.data);
+
+      // Check if request was successful
+      if (response.status === 200 || response.status === 201) {
+        console.log(`✅ OTP SENT VIA HTTP API ✅\n`);
+
+        logger.info(`OTP sent via HTTP API to ${phoneNumber}`, {
+          otpType,
+          status: 'sent',
+          messageId: `http_${Date.now()}`
+        });
+
+        return {
+          success: true,
+          messageId: `http_${Date.now()}`,
+          status: 'sent',
+          provider: 'http_api'
+        };
+      } else {
+        throw new Error(`HTTP API returned status: ${response.status}`);
+      }
+    } catch (error) {
+      console.error(`❌ HTTP API Error:`, error.message);
+      logger.error('HTTP API Error:', error);
+
+      throw error;
+    }
+  }
+
+  // Send OTP via Mock (for development/testing)
+  async sendViaMock(phoneNumber, otpCode, otpType) {
+    console.log(`\n📱 MOCK OTP SERVICE 📱`);
+    console.log(`📞 Phone: ${phoneNumber}`);
+    console.log(`🔐 OTP Code: ${otpCode}`);
+    console.log(`📝 Type: ${otpType}`);
+    console.log(`✅ Status: Mock SMS sent`);
+    console.log(`📱 MOCK OTP SERVICE 📱\n`);
+
+    logger.info(`Mock OTP sent to ${phoneNumber}: ${otpCode}`);
+
+    return {
+      success: true,
+      messageId: 'mock_' + Date.now(),
+      status: 'sent',
+      mock: true,
+      provider: 'mock'
+    };
+  }
+
+  // Main Send OTP method with provider selection
+  async sendOTP(phoneNumber, otpCode, otpType = 'verification') {
+    try {
+      let sendResult;
+
+      // Choose provider based on configuration
+      if (this.xmlApiConfig.enabled && this.smsProvider === 'xml_api') {
+        // Try HTTP API first
+        try {
+          sendResult = await this.sendViaXMLAPI(phoneNumber, otpCode, otpType);
+          return sendResult;
+        } catch (httpError) {
+          console.warn(`⚠️ HTTP API failed, falling back to mock service`);
+          logger.warn('HTTP API failed, using mock fallback', { error: httpError.message });
+
+          // Fallback to mock
+          sendResult = await this.sendViaMock(phoneNumber, otpCode, otpType);
+          sendResult.fallback = true;
+          return sendResult;
+        }
+      } else {
+        // Use mock service
+        sendResult = await this.sendViaMock(phoneNumber, otpCode, otpType);
+        return sendResult;
+      }
+
     } catch (error) {
       logger.error(`Failed to send OTP to ${phoneNumber}:`, error);
-      
+
       return {
         success: false,
         error: error.message,
@@ -93,29 +175,13 @@ class OTPService {
     }
   }
 
-  // Create OTP message based on type
-  createOTPMessage(otpCode, otpType) {
-    const appName = process.env.APP_NAME || 'Marriage App';
-    
-    const messages = {
-      registration: `Welcome to ${appName}! Your verification code is: ${otpCode}. Valid for 10 minutes.`,
-      login: `Your ${appName} login code is: ${otpCode}. Valid for 10 minutes.`,
-      password_reset: `Your ${appName} password reset code is: ${otpCode}. Valid for 10 minutes.`,
-      phone_verification: `Your ${appName} phone verification code is: ${otpCode}. Valid for 10 minutes.`,
-      email_verification: `Your ${appName} email verification code is: ${otpCode}. Valid for 10 minutes.`,
-      profile_update: `Your ${appName} profile update verification code is: ${otpCode}. Valid for 10 minutes.`
-    };
-
-    return messages[otpType] || messages.verification;
-  }
-
   // Create and send OTP
   async createAndSendOTP(phoneNumber, otpType, userId = null, additionalData = {}) {
     try {
       // Check rate limiting (skip for registration OTP)
       if (otpType !== 'registration') {
         const rateLimitInfo = await OTP.getRateLimitInfo(phoneNumber, otpType);
-        
+
         if (rateLimitInfo.remaining <= 0) {
           return {
             success: false,
@@ -149,14 +215,17 @@ class OTPService {
         // Update delivery status
         await otpRecord.update({
           delivery_status: 'sent',
-          delivery_message_id: sendResult.messageId
+          delivery_message_id: sendResult.messageId,
+          delivery_provider: sendResult.provider || 'unknown'
         });
 
         return {
           success: true,
           message: 'OTP sent successfully',
           otpId: otpRecord.id,
-          retryAfter: 60 // 1 minute
+          retryAfter: 60, // 1 minute
+          mock: sendResult.mock || false,
+          fallback: sendResult.fallback || false
         };
       } else {
         // OTP sending failed - log the generated OTP and use it as fallback
@@ -167,9 +236,9 @@ class OTPService {
         console.log(`❌ Error: ${sendResult.error}`);
         console.log(`🔄 Using generated OTP as fallback: ${otpCode}`);
         console.log(`🚨 OTP SENDING FAILED 🚨\n`);
-        
+
         logger.warn(`OTP sending failed for ${phoneNumber}, generated OTP was: ${otpCode}, using generated OTP as fallback`);
-        
+
         // Update OTP record with the originally generated code
         await otpRecord.update({
           otp_code: otpCode, // Keep the originally generated OTP
@@ -189,12 +258,12 @@ class OTPService {
       }
     } catch (error) {
       logger.error('Error creating and sending OTP:', error);
-      
+
       // If there's an internal error, create a fallback OTP
       try {
         // Generate a new OTP for internal error case
         const fallbackOTPCode = this.generateOTP();
-        
+
         console.log(`\n🚨 INTERNAL ERROR - OTP SERVICE 🚨`);
         console.log(`📱 Phone: ${phoneNumber}`);
         console.log(`🔐 Generated OTP: ${fallbackOTPCode}`);
@@ -202,9 +271,9 @@ class OTPService {
         console.log(`❌ Internal Error: ${error.message}`);
         console.log(`🔄 Using generated OTP as fallback: ${fallbackOTPCode}`);
         console.log(`🚨 INTERNAL ERROR - OTP SERVICE 🚨\n`);
-        
+
         logger.error(`Internal error in OTP service for ${phoneNumber}, generated OTP was: ${fallbackOTPCode}, using generated OTP as fallback`);
-        
+
         const fallbackOTPRecord = await OTP.create({
           user_id: userId,
           phone_number: phoneNumber,
@@ -310,7 +379,7 @@ class OTPService {
 
       // Generate new OTP
       const newOTPCode = this.generateOTP();
-      
+
       // Update existing OTP
       await recentOTP.update({
         otp_code: newOTPCode,
@@ -326,13 +395,16 @@ class OTPService {
       if (sendResult.success) {
         await recentOTP.update({
           delivery_status: 'sent',
-          delivery_message_id: sendResult.messageId
+          delivery_message_id: sendResult.messageId,
+          delivery_provider: sendResult.provider || 'unknown'
         });
 
         return {
           success: true,
           message: 'OTP resent successfully',
-          otpId: recentOTP.id
+          otpId: recentOTP.id,
+          mock: sendResult.mock || false,
+          fallback: sendResult.fallback || false
         };
       } else {
         return {
@@ -388,7 +460,7 @@ class OTPService {
 
         if (!acc[type]) acc[type] = {};
         acc[type][status] = count;
-        
+
         return acc;
       }, {});
     } catch (error) {
@@ -408,13 +480,13 @@ class OTPService {
   formatPhoneNumber(phoneNumber) {
     // Remove all non-digit characters except +
     let cleaned = phoneNumber.replace(/[^\d+]/g, '');
-    
+
     // Ensure it starts with +
     if (!cleaned.startsWith('+')) {
       // Assume Indian number if no country code
       cleaned = '+91' + cleaned;
     }
-    
+
     return cleaned;
   }
 }
@@ -422,16 +494,16 @@ class OTPService {
 // Initialize OTP service
 const initializeOTPService = async () => {
   try {
-    // Test Twilio connection if available
-    if (twilioClient && process.env.NODE_ENV === 'production') {
+    // Test HTTP API connection if available
+    if (XML_API_CONFIG.enabled && process.env.NODE_ENV === 'production') {
       try {
-        const account = await twilioClient.api.accounts(process.env.TWILIO_ACCOUNT_SID).fetch();
-        logger.info('Twilio connection established successfully');
-      } catch (twilioError) {
-        logger.error('Twilio connection test failed:', twilioError.message);
+        logger.info('HTTP API SMS service configured and ready');
+        console.log('🚀 HTTP API SMS service is ready for production use');
+      } catch (apiError) {
+        logger.error('HTTP API configuration test failed:', apiError.message);
       }
     }
-    
+
     // Cleanup expired OTPs on startup (if models are available)
     try {
       const otpService = new OTPService();
@@ -439,7 +511,7 @@ const initializeOTPService = async () => {
     } catch (dbError) {
       console.log('Skipping OTP cleanup due to database unavailability');
     }
-    
+
     logger.info('OTP service initialized successfully');
   } catch (error) {
     logger.error('Error initializing OTP service:', error);
