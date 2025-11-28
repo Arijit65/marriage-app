@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   ChevronDown,
   ChevronRight,
@@ -23,6 +23,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { useApi } from '../../context/ApiContext';
 import MemberListing from './MemberListing';
+import BlogManagement from './BlogManagement';
 
 const AdminDashboard = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -34,8 +35,8 @@ const AdminDashboard = () => {
   const [selectedMemberType, setSelectedMemberType] = useState('active');
   const [currentView, setCurrentView] = useState('memberListing');
   const [userStats, setUserStats] = useState({});
-  const { adminUser, adminLogout } = useAuth();
-  const { userApi } = useApi();
+  const { adminUser, adminLogout, adminToken } = useAuth();
+  const { adminApi_methods } = useApi();
   const navigate = useNavigate();
 
   const handleLogout = () => {
@@ -44,20 +45,28 @@ const AdminDashboard = () => {
   };
 
   // Fetch user statistics
-  const fetchUserStats = async () => {
+  const fetchUserStats = useCallback(async () => {
     try {
-      const response = await userApi.getUserStats();
+      const response = await adminApi_methods.getUserStats();
       if (response.success) {
         setUserStats(response.data);
       }
     } catch (err) {
       console.error('Failed to fetch user stats:', err);
     }
-  };
+  }, [adminApi_methods]);
 
   useEffect(() => {
     fetchUserStats();
-  }, []);
+  }, [fetchUserStats]);
+
+  // Debug effect to monitor admin authentication state
+  useEffect(() => {
+    console.log('👤 AdminPanel - Admin User:', adminUser);
+    console.log('🔑 AdminPanel - Admin Token exists:', !!adminToken);
+    console.log('🔑 AdminPanel - Token from localStorage:', !!localStorage.getItem('adminToken'));
+    console.log('📍 AdminPanel - Current location:', window.location.pathname);
+  }, [adminUser, adminToken]);
 
   // Sidebar menu structure
   const menuItems = [
@@ -93,8 +102,7 @@ const AdminDashboard = () => {
       icon: FileText,
       expandable: true,
       subItems: [
-        { title: 'List' },
-        { title: 'Add' }
+        { title: 'Blogs', type: 'blogs', active: currentView === 'blogManagement' }
       ]
     },
     {
@@ -226,8 +234,12 @@ const AdminDashboard = () => {
                         key={index}
                         onClick={() => {
                           if (subItem.type) {
-                            setSelectedMemberType(subItem.type);
-                            setCurrentView('memberListing');
+                            if (subItem.type === 'blogs') {
+                              setCurrentView('blogManagement');
+                            } else {
+                              setSelectedMemberType(subItem.type);
+                              setCurrentView('memberListing');
+                            }
                           }
                         }}
                         className={`w-full text-left px-4 py-2 text-sm rounded-lg transition-colors duration-150 ${
@@ -260,12 +272,14 @@ const AdminDashboard = () => {
                 <Menu className="h-6 w-6" />
               </button>
               <h1 className="text-2xl font-semibold text-gray-900">
-                {currentView === 'memberListing' ? 'Member Management' : 'Content Management'}
+                {currentView === 'memberListing' ? 'Member Management' : 
+                 currentView === 'blogManagement' ? 'Blog Management' : 'Content Management'}
               </h1>
             </div>
             <div className="flex items-center space-x-6">
               <span className="text-base text-gray-600">
-                Dashboard / {currentView === 'memberListing' ? `${selectedMemberType.charAt(0).toUpperCase() + selectedMemberType.slice(1)} Member` : 'Content Management'}
+                Dashboard / {currentView === 'memberListing' ? `${selectedMemberType.charAt(0).toUpperCase() + selectedMemberType.slice(1)} Member` : 
+                            currentView === 'blogManagement' ? 'Blog Management' : 'Content Management'}
               </span>
               <div className="flex items-center space-x-3">
                 <Bell className="h-6 w-6 text-gray-500" />
@@ -285,7 +299,10 @@ const AdminDashboard = () => {
           {currentView === 'memberListing' && (
             <MemberListing memberType={selectedMemberType} />
           )}
-          {currentView !== 'memberListing' && (
+          {currentView === 'blogManagement' && (
+            <BlogManagement />
+          )}
+          {currentView !== 'memberListing' && currentView !== 'blogManagement' && (
             <div className="bg-white p-8">
               <div className="text-center">
                 <h2 className="text-xl font-medium text-gray-900">Content Management</h2>

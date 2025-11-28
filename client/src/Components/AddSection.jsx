@@ -1,19 +1,23 @@
-// AdsSection.jsx  –– refined continuous layout
+// AdsSection.jsx  –– refined continuous layout with dynamic data
 
-import React from "react";
+import React, { useState, useEffect } from "react";
+import { useApi } from "../context/ApiContext";
 
 /* ─── Card component ─── */
-const DemoCard = ({ profileId = "F2150-F", memberType = "STOCK Member", gender = "Bride", age = "32", height = "5'", religion = "Hindu", ethnicity = "Bengali", caste = "Kayastha", education = "MA", photoCount = "2 Photos", imageUrl }) => (
+const DemoCard = ({ profileId = "F2150-F", memberType = "STOCK Member", gender = "Bride", age = "32", height = "5'", religion = "Hindu", ethnicity = "Bengali", caste = "Kayastha", education = "MA", photoCount = "2 Photos", imageUrl, name, details, qualification, profession }) => (
   <div className="bg-white rounded-2xl border border-gray-200 shadow-xl flex overflow-hidden">
     {/* photo */}
     <div className="w-[150px] shrink-0 relative">
       <img
-        src={imageUrl}
+        src={imageUrl || "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=400&h=400&fit=crop&crop=face"}
         alt="profile"
         className="h-full w-full object-cover"
+        onError={(e) => {
+          e.target.src = "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=400&h=400&fit=crop&crop=face";
+        }}
       />
       <span className="absolute bottom-2 left-2 bg-black/70 text-white text-[11px] px-2 rounded">
-        {photoCount}
+        {photoCount || `${Math.floor(Math.random() * 4) + 1} Photos`}
       </span>
     </div>
 
@@ -22,19 +26,19 @@ const DemoCard = ({ profileId = "F2150-F", memberType = "STOCK Member", gender =
       <p className="text-[12px] text-gray-500">
         {profileId} • <span className="text-blue-600 font-semibold">{memberType}</span>
       </p>
-      <p className="font-semibold">{gender} · {age} years / {height}</p>
+      <p className="font-semibold">{details || `${gender} · ${age} years / ${height}`}</p>
       <p className="leading-snug text-gray-700">
-        {religion}, {ethnicity}, {caste} · {ethnicity}, {education}…
+        {profession || qualification || `${religion}, ${ethnicity}, ${caste} · ${ethnicity}, ${education}...`}
         <span className="text-red-600 font-medium ml-1 cursor-pointer">Read More</span>
       </p>
 
       <div className="flex items-center pt-2">
         <input
-          id="contactEmail"
+          id={`contactEmail-${profileId}`}
           type="checkbox"
           className="accent-red-600 w-4 h-4 mr-2"
         />
-        <label htmlFor="contactEmail" className="text-[13px]">
+        <label htmlFor={`contactEmail-${profileId}`} className="text-[13px]">
           Contact via email
         </label>
         <button
@@ -76,115 +80,195 @@ const Block = ({ label, headline, children, isLast }) => (
   </>
 );
 
+// Fallback placeholder images for variety - moved outside component to avoid dependency issues
+const PLACEHOLDER_IMAGES = [
+  "https://media.istockphoto.com/id/1987655119/photo/smiling-young-businesswoman-standing-in-the-corridor-of-an-office.jpg?s=612x612&w=0&k=20&c=5N_IVGYsXoyj-H9vEiZUCLqbmmineaemQsKt2NTXGms=",
+  "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop&crop=face",
+  "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=400&h=400&fit=crop&crop=face",
+  "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400&h=400&fit=crop&crop=face",
+  "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=400&h=400&fit=crop&crop=face",
+  "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400&h=400&fit=crop&crop=face"
+];
+
 const AdsSection = () => {
-  // Different placeholder images for variety
-  const placeholderImages = [
-    "https://media.istockphoto.com/id/1987655119/photo/smiling-young-businesswoman-standing-in-the-corridor-of-an-office.jpg?s=612x612&w=0&k=20&c=5N_IVGYsXoyj-H9vEiZUCLqbmmineaemQsKt2NTXGms=",
-    "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop&crop=face",
-    "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=400&h=400&fit=crop&crop=face",
-    "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400&h=400&fit=crop&crop=face",
-    "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=400&h=400&fit=crop&crop=face",
-    "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400&h=400&fit=crop&crop=face"
-  ];
+  const [latestAds, setLatestAds] = useState([]);
+  const [featuredAds, setFeaturedAds] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const { profileApi } = useApi();
+
+  // Fallback data functions - moved inside useEffect to avoid dependencies
+  useEffect(() => {
+    const getFallbackLatestAds = () => [
+      {
+        id: 1,
+        profileId: "F2150-F",
+        memberType: "STOCK Member",
+        name: "Priya Sharma",
+        age: 32,
+        height: "5'",
+        details: "Bride · 32 years / 5'",
+        ethnicity: "Hindu, Bengali, Kayastha",
+        qualification: "MA",
+        profession: "Software Engineer",
+        photos: 2,
+        image: PLACEHOLDER_IMAGES[0]
+      },
+      {
+        id: 2,
+        profileId: "F2151-M",
+        memberType: "PREMIUM Member", 
+        name: "Arjun Khan",
+        age: 28,
+        height: "5'8",
+        details: "Groom · 28 years / 5'8",
+        ethnicity: "Muslim, Punjabi, Jatt",
+        qualification: "MBA",
+        profession: "Business Analyst",
+        photos: 3,
+        image: PLACEHOLDER_IMAGES[1]
+      }
+    ];
+
+    const getFallbackFeaturedAds = () => [
+      {
+        id: 3,
+        profileId: "F2152-F",
+        memberType: "VIP Member",
+        name: "Sarah Wilson",
+        age: 26,
+        height: "5'3",
+        details: "Bride · 26 years / 5'3",
+        ethnicity: "Christian, Anglo-Indian",
+        qualification: "B.Tech",
+        profession: "Software Developer",
+        photos: 4,
+        image: PLACEHOLDER_IMAGES[2]
+      },
+      {
+        id: 4,
+        profileId: "F2155-M",
+        memberType: "VIP Member",
+        name: "Rahul Agarwal", 
+        age: 29,
+        height: "5'9",
+        details: "Groom · 29 years / 5'9",
+        ethnicity: "Jain, Marwari, Agarwal",
+        qualification: "Ph.D",
+        profession: "Research Scientist",
+        photos: 3,
+        image: PLACEHOLDER_IMAGES[5]
+      }
+    ];
+
+    const fetchAds = async () => {
+      try {
+        setLoading(true);
+        
+        // Fetch the latest profiles
+        const latestResponse = await profileApi.getAdProfiles({ 
+          page: 1, 
+          limit: 10 // Get more to have options
+        });
+
+        if (latestResponse?.success && latestResponse?.data?.profiles) {
+          const profiles = latestResponse.data.profiles;
+          
+          // Process profiles and add fallback images where needed
+          const processedProfiles = profiles.map((profile, index) => ({
+            ...profile,
+            image: profile.image || PLACEHOLDER_IMAGES[index % PLACEHOLDER_IMAGES.length]
+          }));
+          
+          // Latest Ads: Last 2 profiles (most recent)
+          setLatestAds(processedProfiles.slice(0, 2));
+          
+          // Featured Ads: Random 2 profiles from the remaining
+          const remainingProfiles = processedProfiles.length > 2 ? processedProfiles.slice(2) : processedProfiles;
+          const shuffled = [...remainingProfiles].sort(() => 0.5 - Math.random());
+          setFeaturedAds(shuffled.slice(0, 2));
+        } else {
+          // If API fails, use fallback data
+          setLatestAds(getFallbackLatestAds());
+          setFeaturedAds(getFallbackFeaturedAds());
+        }
+      } catch (err) {
+        console.error('Error fetching ads:', err);
+        
+        // Use fallback data
+        setLatestAds(getFallbackLatestAds());
+        setFeaturedAds(getFallbackFeaturedAds());
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAds();
+  }, [profileApi]);
+
+  // Loading state
+  if (loading) {
+    return (
+      <section className="w-full bg-gray-100/60">
+        <div className="max-w-7xl mx-auto px-4">
+          <header className="text-center pt-16">
+            <h2 className="text-red-600 text-4xl sm:text-5xl font-extrabold mb-10">
+              Loading Ads...
+            </h2>
+          </header>
+          <div className="flex justify-center items-center py-20">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600"></div>
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   return (
     /* full-bleed subtle background */
     <section className="w-full bg-gray-100/60">
       <div className="max-w-7xl mx-auto px-4">
-        {/* Latest Ads – heading + sample cards (2 cards) */}
+        {/* Latest Ads – heading + dynamic cards (2 latest profiles) */}
         <Block
           label="Latest Ads"
           headline="Find Your Perfect Match Today"
         >
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
-            <DemoCard 
-              profileId="F2150-F"
-              memberType="STOCK Member"
-              gender="Bride"
-              age="32"
-              height="5'"
-              religion="Hindu"
-              ethnicity="Bengali"
-              caste="Kayastha"
-              education="MA"
-              photoCount="2 Photos"
-              imageUrl={placeholderImages[0]}
-            />
-            <DemoCard 
-              profileId="F2151-M"
-              memberType="PREMIUM Member"
-              gender="Groom"
-              age="28"
-              height="5'8"
-              religion="Muslim"
-              ethnicity="Punjabi"
-              caste="Jatt"
-              education="MBA"
-              photoCount="3 Photos"
-              imageUrl={placeholderImages[1]}
-            />
+            {latestAds.map((profile, index) => (
+              <DemoCard 
+                key={profile.id || index}
+                profileId={profile.profileId}
+                memberType={profile.memberType}
+                details={profile.details}
+                ethnicity={profile.ethnicity}
+                qualification={profile.qualification}
+                profession={profile.profession}
+                photoCount={profile.photos ? `${profile.photos} Photos` : '2 Photos'}
+                imageUrl={profile.image}
+              />
+            ))}
           </div>
         </Block>
 
-        {/* Featured Ads – heading + sample cards (4 cards) */}
+        {/* Featured Ads – heading + dynamic cards (2 random profiles) */}
         <Block
           label="Featured Ads"
           headline="Discover Your Perfect Match"
           isLast
         >
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6 max-w-6xl mx-auto">
-            <DemoCard 
-              profileId="F2152-F"
-              memberType="VIP Member"
-              gender="Bride"
-              age="26"
-              height="5'3"
-              religion="Christian"
-              ethnicity="Anglo-Indian"
-              caste="General"
-              education="B.Tech"
-              photoCount="4 Photos"
-              imageUrl={placeholderImages[2]}
-            />
-            {/* <DemoCard 
-              profileId="F2153-M"
-              memberType="STOCK Member"
-              gender="Groom"
-              age="30"
-              height="5'10"
-              religion="Sikh"
-              ethnicity="Punjabi"
-              caste="Ramgharia"
-              education="CA"
-              photoCount="2 Photos"
-              imageUrl={placeholderImages[3]}
-            /> */}
-            <DemoCard 
-              profileId="F2154-F"
-              memberType="PREMIUM Member"
-              gender="Bride"
-              age="24"
-              height="5'2"
-              religion="Hindu"
-              ethnicity="Gujarati"
-              caste="Patel"
-              education="MBBS"
-              photoCount="5 Photos"
-              imageUrl={placeholderImages[4]}
-            />
-            <DemoCard 
-              profileId="F2155-M"
-              memberType="VIP Member"
-              gender="Groom"
-              age="29"
-              height="5'9"
-              religion="Jain"
-              ethnicity="Marwari"
-              caste="Agarwal"
-              education="Ph.D"
-              photoCount="3 Photos"
-              imageUrl={placeholderImages[5]}
-            />
+            {featuredAds.map((profile, index) => (
+              <DemoCard 
+                key={profile.id || index}
+                profileId={profile.profileId}
+                memberType={profile.memberType}
+                details={profile.details}
+                ethnicity={profile.ethnicity}
+                qualification={profile.qualification}
+                profession={profile.profession}
+                photoCount={profile.photos ? `${profile.photos} Photos` : '3 Photos'}
+                imageUrl={profile.image}
+              />
+            ))}
           </div>
         </Block>
       </div>

@@ -5,41 +5,68 @@ import { useAuth } from '../../context/AuthContext';
 const ProtectedRoute = ({ children, requiredRole }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { isAdminAuthenticated, isRRAuthenticated, isAuthenticated } = useAuth();
-  const [isLoading, setIsLoading] = useState(true);
+  const { 
+    isAdminAuthenticated, 
+    isRRAuthenticated, 
+    isAuthenticated, 
+    adminUser, 
+    adminToken,
+    rrUser,
+    rrToken,
+    loading 
+  } = useAuth();
+  const [isChecking, setIsChecking] = useState(true);
 
   useEffect(() => {
-    const checkAuth = async () => {
-      // Check role-based authentication
+    const checkAuth = () => {
+      // Don't check while context is still loading initial state
+      if (loading) {
+        console.log('⏳ Context still loading, waiting...');
+        return;
+      }
+
       let hasAccess = false;
 
       console.log('🛡️ ProtectedRoute checking auth for role:', requiredRole);
       console.log('🛡️ isAdminAuthenticated:', isAdminAuthenticated);
-      console.log('🛡️ isRRAuthenticated:', isRRAuthenticated);
-      console.log('🛡️ isAuthenticated:', isAuthenticated);
+      console.log('🛡️ adminUser:', adminUser);
+      console.log('🛡️ adminToken exists:', !!adminToken);
+      console.log('🛡️ adminToken value:', adminToken?.substring(0, 10) + '...');
 
       if (requiredRole === 'admin') {
-        hasAccess = isAdminAuthenticated;
+        // Use context state which is synced with localStorage
+        hasAccess = isAdminAuthenticated && adminUser && adminToken;
+        
         console.log('🛡️ Admin route - hasAccess:', hasAccess);
+        
         if (!hasAccess) {
           console.log('❌ Admin not authenticated, redirecting to admin-login');
           navigate('/admin-login', {
             state: {
               from: location.pathname,
               message: 'Please login as admin to access this page'
-            }
+            },
+            replace: true
           });
+          setIsChecking(false);
           return;
         }
       } else if (requiredRole === 'rr') {
-        hasAccess = isRRAuthenticated;
+        // Use context state which is synced with localStorage
+        hasAccess = isRRAuthenticated && rrUser && rrToken;
+        
+        console.log('🛡️ RR route - hasAccess:', hasAccess);
+        
         if (!hasAccess) {
+          console.log('❌ RR not authenticated, redirecting to rr-login');
           navigate('/rr-login', { 
             state: { 
               from: location.pathname,
               message: 'Please login as RR to access this page' 
-            } 
+            },
+            replace: true
           });
+          setIsChecking(false);
           return;
         }
       } else {
@@ -58,20 +85,23 @@ const ProtectedRoute = ({ children, requiredRole }) => {
             state: { 
               from: location.pathname,
               message: 'Please login to access this page' 
-            } 
+            },
+            replace: true
           });
+          setIsChecking(false);
           return;
         }
       }
 
       console.log('✅ Authentication check passed, rendering children');
-      setIsLoading(false);
+      setIsChecking(false);
     };
 
     checkAuth();
-  }, [navigate, location, requiredRole, isAdminAuthenticated, isRRAuthenticated, isAuthenticated]);
+  }, [navigate, location, requiredRole, isAdminAuthenticated, isRRAuthenticated, isAuthenticated, adminUser, adminToken, rrUser, rrToken, loading]);
 
-  if (isLoading) {
+  // Show loading state if context is still initializing or we're checking auth
+  if (loading || isChecking) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-red-50 via-white to-yellow-50 flex items-center justify-center">
         <div className="text-center">

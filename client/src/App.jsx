@@ -23,6 +23,7 @@ import PaymentCheckout from "./Components/PaymentCheckout";
 import Dashboard from "./pages/Profile/Dashboard";
 import EditAd from "./pages/Profile/EditAd";
 import BlogPage from "./pages/Blog/Blog";
+import BlogDetail from "./pages/Blog/BlogDetail";
 import PostRegistrationMessage from "./pages/Auth/PostRegistrationMessage";
 
 function App() {
@@ -46,6 +47,7 @@ function App() {
         <Route path="/register/:referCode" element={<Register />} />
         <Route path="/portals" element={<PortalLanding />} />
         <Route path="/blogs" element={<BlogPage />} />
+        <Route path="/blog/:slug" element={<BlogDetail />} />
         
         {/* Protected Profile Routes */}
         <Route path="/checkout" element={  <PaymentCheckout /> } />

@@ -1,7 +1,7 @@
 import React from 'react'
 import { useParams } from 'react-router-dom'
 import PostAdForm from '../../Components/RegisterForm'
-import MainHeader from '../../Components/mainHeader'
+import ResponsiveHeader from '../../Components/ResponsiveHeader'
 import Footer from '../../Components/Footer'
 
 const Register = () => {
@@ -9,7 +9,7 @@ const Register = () => {
   
   return (
     <div>
-        <MainHeader/>
+        <ResponsiveHeader/>
         <PostAdForm referCode={referCode} />
         <Footer/>
       

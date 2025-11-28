@@ -2,13 +2,13 @@
 
 import React from "react";
 import { Check, ArrowRight } from "lucide-react";
-import MainHeader from "../Components/mainHeader";
+import ResponsiveHeader from "../Components/ResponsiveHeader";
 import Footer from "../Components/Footer";
 
 const BenefitsSection = () => {
   return (
     <>
-    <MainHeader/>
+    <ResponsiveHeader/>
     <section className="py-5 bg-white mb-10">
 
       <div className="max-w-7xl mx-auto px-6">

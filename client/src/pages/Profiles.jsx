@@ -5,7 +5,7 @@ import ProfileFilters from '../Components/ProfileFilters';
 import ProfileCard from '../Components/ProfileCard';
 import { Search, Filter, Grid, List } from 'lucide-react';
 import Footer from '../Components/Footer';
-import MainHeader from '../Components/mainHeader';
+import ResponsiveHeader from '../Components/ResponsiveHeader';
 import { useAuth } from '../context';
 
 const ProfilesPage = () => {
@@ -17,7 +17,7 @@ const ProfilesPage = () => {
   const [filters, setFilters] = useState({});
   const [viewMode, setViewMode] = useState('list');
   const [showFilters, setShowFilters] = useState(true);
-  const backenUrl = import.meta.env.VITE_BACKEND_URL
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
 
   // Static profile data as fallback
   const staticProfiles = [
@@ -261,7 +261,7 @@ const ProfilesPage = () => {
         console.log('Making unauthenticated request to fetch profiles');
       }
 
-      const response = await fetch(`${backenUrl}/api/profile/ad-profiles?${queryParams}`, {
+      const response = await fetch(`${API_URL}/profile/ad-profiles?${queryParams}`, {
         method: 'GET',
         headers
       });
@@ -319,7 +319,7 @@ const ProfilesPage = () => {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <MainHeader />
+        <ResponsiveHeader />
         <div className="flex items-center justify-center min-h-[60vh]">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-500 mx-auto mb-4"></div>
@@ -335,7 +335,7 @@ const ProfilesPage = () => {
   if (error) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <MainHeader />
+        <ResponsiveHeader />
         <div className="flex items-center justify-center min-h-[60vh]">
           <div className="text-center">
             <div className="bg-red-100 rounded-full p-4 mx-auto mb-4 w-16 h-16 flex items-center justify-center">
@@ -358,7 +358,7 @@ const ProfilesPage = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-        <MainHeader/>
+        <ResponsiveHeader/>
       {/* Header */}
       <div className="bg-white border-b border-gray-200 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 py-4">

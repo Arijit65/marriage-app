@@ -18,7 +18,7 @@ const HeroRegistration = () => {
   }
 
   return (
-    <section className="relative w-full h-[calc(100vh-120px)] overflow-hidden">
+    <section className="relative w-full min-h-[calc(100vh-120px)] lg:h-[calc(100vh-120px)] overflow-hidden">
       {/* Enhanced Background with Gradient Overlay */}
       <div className="absolute inset-0 w-full h-full">
         <div
@@ -43,92 +43,136 @@ const HeroRegistration = () => {
       </div>
 
       {/* Main Content */}
-      <div className="relative z-10 w-full h-full flex items-center px-4 sm:px-6 lg:px-8 py-8">
+      <div className="relative z-10 w-full h-full flex items-center px-4 sm:px-6 lg:px-8 py-6 lg:py-4">
         <div className="max-w-7xl mx-auto w-full">
-          <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-8 items-center lg:items-center">
             {/* Left: Enhanced Registration Card */}
-            <div className="flex justify-center lg:justify-start">
-              <div className="w-full max-w-sm bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl border border-white/20 overflow-hidden transform hover:scale-105 transition-all duration-300">
+            <div className="flex justify-center lg:justify-start order-1 lg:order-1">
+              <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden transform hover:scale-[1.02] transition-all duration-300">
                 {/* Enhanced Header with Gradient */}
-            <div className="bg-gradient-to-r from-red-600 to-red-700 px-6 py-6 text-center text-white relative overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-r from-red-500/20 to-transparent"></div>
-                <div className="relative z-10 mb-2">
+                <div className="bg-gradient-to-br from-rose-500 via-red-600 to-pink-600 px-6 py-5 text-center text-white relative overflow-hidden">
+                  {/* Decorative Elements */}
+                  <div className="absolute top-0 left-0 w-32 h-32 bg-white/10 rounded-full -translate-x-16 -translate-y-16"></div>
+                  <div className="absolute bottom-0 right-0 w-40 h-40 bg-white/10 rounded-full translate-x-16 translate-y-16"></div>
+                  
+                  <div className="relative z-10">
                     <div className="flex justify-center mb-2">
-                      <div className="p-2 bg-white/20 rounded-full">
-                        <Heart className="w-5 h-5" />
+                      <div className="p-1 bg-white/20 backdrop-blur-sm rounded-xl shadow-lg">
+                        <img src="/src/assets/mp_logo.png" alt="MP Logo" className="w-8 h-8 object-contain" />
                       </div>
                     </div>
                     <h3 className="text-xl font-bold tracking-wide mb-1">Free Registration</h3>
-                    <p className="text-red-100 font-medium text-sm">Instant Approval</p>
+                    <p className="text-red-50 font-medium text-sm">✨ Instant Approval ✨</p>
+                  </div>
                 </div>
-              
 
                 {/* Enhanced Form Body */}
-                <div className="p-5 space-y-4 bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl border border-white/20">
-                  {/* Gender Selection with Icons */}
-                  <div className="space-y-1">
-                    <label className="text-sm font-medium text-gray-700">Gender</label>
-                    <select
-                      value={formData.gender}
-                      onChange={(e) => handleInputChange("gender", e.target.value)}
-                      className="w-full border-2 border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-red-500 focus:ring-2 focus:ring-red-500/20 transition-all duration-200 bg-white"
-                    >
-                      <option value="">Select Gender</option>
-                      <option value="bride">👰 Bride</option>
-                      <option value="groom">🤵 Groom</option>
-                    </select>
+                <div className="p-6 space-y-4 bg-gradient-to-b from-gray-50 to-white">
+                  {/* Gender Selection with Better Visibility */}
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-semibold text-gray-800">
+                      I am looking for
+                    </label>
+                    <div className="grid grid-cols-2 gap-2.5">
+                      <button
+                        type="button"
+                        onClick={() => handleInputChange("gender", "bride")}
+                        className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all duration-200 ${
+                          formData.gender === "bride"
+                            ? "border-rose-500 bg-rose-50 shadow-lg shadow-rose-200"
+                            : "border-gray-300 bg-white hover:border-rose-300 hover:bg-rose-50/50"
+                        }`}
+                      >
+                        <span className="text-2xl mb-0.5">👰</span>
+                        <span className={`text-xs font-semibold ${
+                          formData.gender === "bride" ? "text-rose-600" : "text-gray-700"
+                        }`}>
+                          Bride
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleInputChange("gender", "groom")}
+                        className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all duration-200 ${
+                          formData.gender === "groom"
+                            ? "border-rose-500 bg-rose-50 shadow-lg shadow-rose-200"
+                            : "border-gray-300 bg-white hover:border-rose-300 hover:bg-rose-50/50"
+                        }`}
+                      >
+                        <span className="text-2xl mb-0.5">🤵</span>
+                        <span className={`text-xs font-semibold ${
+                          formData.gender === "groom" ? "text-rose-600" : "text-gray-700"
+                        }`}>
+                          Groom
+                        </span>
+                      </button>
+                    </div>
                   </div>
 
                   {/* Phone Number with Enhanced Styling */}
-                  <div className="space-y-1">
-                    <label className="text-sm font-medium text-gray-700">Phone Number</label>
-                    <input
-                      type="tel"
-                      value={formData.phone}
-                      onChange={(e) => handleInputChange("phone", e.target.value)}
-                      placeholder="Enter your phone number"
-                      className="w-full border-2 border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-red-500 focus:ring-2 focus:ring-red-500/20 transition-all duration-200"
-                    />
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-semibold text-gray-800">
+                      Phone Number *
+                    </label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <span className="text-gray-500 text-sm">📱</span>
+                      </div>
+                      <input
+                        type="tel"
+                        value={formData.phone}
+                        onChange={(e) => handleInputChange("phone", e.target.value)}
+                        placeholder="Enter your mobile number"
+                        className="w-full pl-10 pr-3 py-2.5 border-2 border-gray-300 rounded-xl text-sm font-medium focus:outline-none focus:border-rose-500 focus:ring-4 focus:ring-rose-100 transition-all duration-200 bg-white"
+                      />
+                    </div>
                   </div>
 
                   {/* Enhanced Tagline */}
-                  <div className="text-center py-1">
-                    <p className="text-xs font-semibold text-gray-600 flex items-center justify-center gap-2">
-                      <Star className="w-3 h-3 text-red-500" />
-                      Finding Match Made Easy
-                      <Star className="w-3 h-3 text-red-500" />
-                    </p>
+                  <div className="flex items-center justify-center gap-2 py-1">
+                    <div className="h-px bg-gradient-to-r from-transparent via-rose-300 to-transparent flex-1"></div>
+                    <div className="flex items-center gap-1.5">
+                      <Star className="w-3.5 h-3.5 text-rose-500 fill-rose-500" />
+                      <span className="text-xs font-bold text-gray-700 tracking-wide">
+                        FINDING MATCH MADE EASY
+                      </span>
+                      <Star className="w-3.5 h-3.5 text-rose-500 fill-rose-500" />
+                    </div>
+                    <div className="h-px bg-gradient-to-r from-transparent via-rose-300 to-transparent flex-1"></div>
                   </div>
 
                   {/* Enhanced Register Button */}
-                  <button className="w-full bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white py-2.5 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl">
-                    Register Now
+                  <button className="w-full bg-gradient-to-r from-rose-500 via-red-600 to-pink-600 hover:from-rose-600 hover:via-red-700 hover:to-pink-700 text-white py-3 rounded-xl font-bold text-sm transition-all duration-300 transform hover:scale-[1.02] hover:shadow-2xl shadow-lg active:scale-95">
+                    Register Now - It's Free!
                   </button>
 
                   {/* Enhanced Video Advertisement Section */}
-                  <div className="pt-3 text-center space-y-1 border-t border-gray-100">
-                    <div className="flex items-center justify-center gap-2">
-                      <div className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse"></div>
-                      <p className="text-xs font-semibold text-gray-800">Think Video Advertisement</p>
-                      <div className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse"></div>
+                  <div className="pt-3 text-center space-y-1 border-t-2 border-dashed border-gray-200">
+                    <div className="flex items-center justify-center gap-1.5">
+                      <div className="w-1.5 h-1.5 bg-rose-500 rounded-full animate-pulse"></div>
+                      <p className="text-xs font-bold text-gray-800 tracking-wide">
+                        THINK VIDEO ADVERTISEMENT
+                      </p>
+                      <div className="w-1.5 h-1.5 bg-rose-500 rounded-full animate-pulse"></div>
                     </div>
-                    <p className="text-xs text-gray-600">For Fast Response</p>
+                    <p className="text-xs font-semibold text-rose-600 bg-rose-50 py-1 px-2.5 rounded-full inline-block">
+                      🚀 For Faster Response
+                    </p>
                   </div>
                 </div>
               </div>
             </div>
-            </div>
 
             {/* Right: Enhanced Promo Text & Search */}
-            <div className="flex flex-col justify-center space-y-6">
+            <div className="flex flex-col justify-center space-y-4 lg:space-y-6 order-2 lg:order-2 px-2 lg:px-0">
               {/* Enhanced Headline Block */}
-              <div className="space-y-3 text-center lg:text-left">
+              <div className="space-y-2 lg:space-y-3 text-center lg:text-left">
                 <div className="inline-flex items-center gap-2 bg-red-500/20 backdrop-blur-sm px-3 py-1.5 rounded-full border border-red-400/30">
                   <div className="w-1.5 h-1.5 bg-red-400 rounded-full animate-pulse"></div>
                   <p className="text-red-300 font-semibold text-sm">Advertise</p>
                 </div>
 
-                <h2 className="text-3xl lg:text-5xl font-extrabold text-white leading-tight">
+                <h2 className="text-2xl sm:text-3xl lg:text-5xl font-extrabold text-white leading-tight">
                   Profile In{" "}
                   <span className="bg-gradient-to-r from-red-400 to-red-600 bg-clip-text text-transparent">Video</span>
                 </h2>
@@ -139,42 +183,42 @@ const HeroRegistration = () => {
                   <div className="h-px bg-gradient-to-l from-transparent to-red-400 flex-1 max-w-16"></div>
                 </div>
 
-                <h3 className="text-2xl lg:text-4xl font-extrabold bg-gradient-to-r from-red-400 to-red-600 bg-clip-text text-transparent">
+                <h3 className="text-xl sm:text-2xl lg:text-4xl font-extrabold bg-gradient-to-r from-red-400 to-red-600 bg-clip-text text-transparent">
                   Get Matching Fast
                 </h3>
               </div>
 
               {/* Enhanced Search Section */}
-              <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-5 border border-white/20 space-y-4">
+              <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 lg:p-5 border border-white/20 space-y-3 lg:space-y-4">
                 {/* ID Search */}
-                <div className="space-y-2">
+                <div className="space-y-1.5 lg:space-y-2">
                   <h4 className="text-white font-semibold flex items-center gap-2 text-sm">
                     <Search className="w-4 h-4" />
                     Quick ID Search
                   </h4>
-                  <div className="flex">
+                  <div className="flex flex-col sm:flex-row gap-2 lg:gap-0">
                     <input
                       type="text"
                       value={formData.searchId}
                       onChange={(e) => handleInputChange("searchId", e.target.value)}
                       placeholder="Enter Profile ID"
-                      className="flex-1 border-2 border-gray-300 rounded-l-xl px-3 py-2 text-sm focus:outline-none focus:border-red-500 focus:ring-2 focus:ring-red-500/20 transition-all duration-200"
+                      className="flex-1 border-2 border-gray-300 rounded-xl sm:rounded-l-xl sm:rounded-r-none px-3 py-2 text-sm focus:outline-none focus:border-red-500 focus:ring-2 focus:ring-red-500/20 transition-all duration-200"
                     />
-                    <button className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white px-6 rounded-r-xl text-sm font-semibold transition-all duration-300 transform hover:scale-105">
+                    <button className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white px-6 py-2 rounded-xl sm:rounded-r-xl sm:rounded-l-none text-sm font-semibold transition-all duration-300 transform hover:scale-105">
                       Go
                     </button>
                   </div>
                 </div>
 
                 {/* Advanced Search */}
-                <div className="space-y-3">
+                <div className="space-y-2 lg:space-y-3">
                   <h4 className="text-white font-semibold flex items-center gap-2 text-sm">
                     <Users className="w-4 h-4" />
                     Advanced Search
                   </h4>
 
                   {/* Search Filters */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-2">
+                  <div className="grid grid-cols-1 gap-2 lg:grid-cols-2 lg:gap-2">
                     {/* Bride Checkbox */}
                     <label className="flex items-center space-x-2 text-white cursor-pointer">
                       <input
@@ -205,7 +249,7 @@ const HeroRegistration = () => {
                     </div>
                   </div>
 
-                  <div className="flex flex-col sm:flex-row gap-2">
+                  <div className="flex flex-col gap-2 lg:flex-row lg:gap-2">
                     {/* Religion */}
                     <select
                       value={formData.religion}

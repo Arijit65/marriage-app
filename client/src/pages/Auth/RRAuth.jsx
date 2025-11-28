@@ -117,8 +117,10 @@ const RRAuth = () => {
           isActive: data.data.rrUser.active
         };
 
+        console.log('🔑 RRAuth: Logging in RR with:', rrData);
         rrLogin(rrData, data.data.token);
-        navigate('/rr-panel');
+        console.log('✅ RRAuth: Login successful, navigating to rr-panel');
+        navigate('/rr-panel', { replace: true });
       } else {
         setErrors({
           general: data.message || 'Invalid email or password. Please try again.'

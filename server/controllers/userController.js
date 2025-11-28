@@ -131,7 +131,7 @@ class UserController {
   // GET /api/users/list (admin)
   async getUsers(req, res, next) {
     try {
-      const { page = 1, limit = 20, search, status, planId, sortBy = 'createdAt', sortOrder = 'DESC' } = req.query;
+      const { page = 1, limit = 20, search, status, planId, sortBy = 'created_at', sortOrder = 'DESC' } = req.query;
       
       const offset = (page - 1) * limit;
       const where = {};
@@ -139,17 +139,30 @@ class UserController {
       if (search) {
         where[User.sequelize.Op.or] = [
           { name: { [User.sequelize.Op.like]: `%${search}%` } },
-          { email: { [User.sequelize.Op.like]: `%${search}%` } }
+          { email: { [User.sequelize.Op.like]: `%${search}%` } },
+          { phone_number: { [User.sequelize.Op.like]: `%${search}%` } }
         ];
       }
       
       if (status) where.account_status = status;
       if (planId) where.plan_id = planId;
 
+      // Map common sortBy values to actual column names
+      const sortByMap = {
+        'createdAt': 'created_at',
+        'updatedAt': 'updated_at',
+        'name': 'name',
+        'email': 'email',
+        'phone_number': 'phone_number',
+        'id': 'id'
+      };
+
+      const actualSortBy = sortByMap[sortBy] || 'created_at';
+
       const users = await User.findAndCountAll({
         where,
         attributes: { exclude: ['password'] },
-        order: [[sortBy, sortOrder]],
+        order: [[actualSortBy, sortOrder]],
         limit: parseInt(limit),
         offset: parseInt(offset)
       });
@@ -167,6 +180,7 @@ class UserController {
         }
       });
     } catch (err) {
+      console.error('Error in getUsers:', err);
       next(err);
     }
   }
@@ -209,6 +223,39 @@ class UserController {
       res.json({
         success: true,
         message: 'User updated successfully',
+        data: { user }
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  // PUT /api/users/:userId/status (admin)
+  async updateUserStatus(req, res, next) {
+    try {
+      const { userId } = req.params;
+      const { status, reason = '' } = req.body;
+
+      const user = await User.findByPk(userId);
+      if (!user) throw new AppError('User not found', 404);
+
+      // Validate status
+      const validStatuses = ['active', 'inactive', 'suspended', 'pending_verification', 'banned'];
+      if (!validStatuses.includes(status)) {
+        throw new AppError('Invalid status', 400);
+      }
+
+      await user.update({ 
+        account_status: status,
+        is_active: status === 'active'
+      });
+
+      // Log the status change
+      console.log(`User ${userId} status updated to ${status} by admin. Reason: ${reason}`);
+
+      res.json({
+        success: true,
+        message: 'User status updated successfully',
         data: { user }
       });
     } catch (err) {

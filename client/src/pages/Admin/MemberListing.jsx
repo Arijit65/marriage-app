@@ -13,7 +13,7 @@ const MemberListing = ({ memberType = 'active' }) => {
   const [totalUsers, setTotalUsers] = useState(0);
   const [userStats, setUserStats] = useState({});
 
-  const { userApi } = useApi();
+  const { adminApi_methods } = useApi();
 
   // Map frontend member types to backend account statuses
   const memberTypeToStatus = {
@@ -95,16 +95,13 @@ const MemberListing = ({ memberType = 'active' }) => {
       setLoading(true);
       setError(null);
 
-      const filters = {
-        page: currentPage,
-        limit: entriesPerPage,
-        search: searchTerm || undefined,
-        status: memberTypeToStatus[memberType] || undefined,
-        sortBy: 'created_at',
-        sortOrder: 'DESC'
-      };
-
-      const response = await userApi.getUsers(filters);
+      const status = memberTypeToStatus[memberType] || memberType;
+      const response = await adminApi_methods.getUsersByStatus(
+        status,
+        currentPage,
+        entriesPerPage,
+        searchTerm
+      );
 
       if (response.success) {
         const transformedUsers = response.data.users.map(transformUserData);
@@ -123,7 +120,7 @@ const MemberListing = ({ memberType = 'active' }) => {
   // Fetch user statistics
   const fetchUserStats = async () => {
     try {
-      const response = await userApi.getUserStats();
+      const response = await adminApi_methods.getUserStats();
       if (response.success) {
         setUserStats(response.data);
       }

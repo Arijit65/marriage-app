@@ -1,101 +1,162 @@
-import React, { useState } from 'react';
-import { Search, Calendar, User, ArrowRight } from 'lucide-react';
-import MainHeader from '../../Components/mainHeader';
+import React, { useState, useEffect } from 'react';
+import { Search, Calendar, User, ArrowRight, Eye, Clock, ChevronRight } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { useApi } from '../../context/ApiContext';
+import ResponsiveHeader from '../../Components/ResponsiveHeader';
 
-// Sample blog data
-const blogPosts = [
-  {
-    id: 1,
-    title: "Best matrimony site for Bengali",
-    excerpt: "If you are tired of the fake profiles and the unprofessional behaviours and the expensive fees, when you register on a matrimonial site...",
-    image: "https://images.unsplash.com/photo-1606800052052-a08af7148866?w=400&h=200&fit=crop",
-    category: "Uncategorized",
-    date: "2024-12-15",
-    author: "Admin"
-  },
-  {
-    id: 2,
-    title: "The Bengali bride look is a classic and traditional bridal look",
-    excerpt: "When you opt for an arranged marriage one of the things you need to prepare with utmost care is the biodata...",
-    image: "https://images.unsplash.com/photo-1583391733956-6c78276477e2?w=400&h=200&fit=crop",
-    category: "Uncategorized", 
-    date: "2024-12-10",
-    author: "Admin"
-  },
-  {
-    id: 3,
-    title: "High bengali matrimonial",
-    excerpt: "Whenever non-Indian people hear about arranged marriages, they have some repressive, backwards, and illicit thoughts...",
-    image: "https://images.unsplash.com/photo-1537511446984-935f663eb1f4?w=400&h=200&fit=crop",
-    category: "Uncategorized",
-    date: "2024-12-05", 
-    author: "Admin"
-  },
-  {
-    id: 4,
-    title: "Tags bengali bride, bengali groom, matrimonial",
-    excerpt: "Jewellery is an important element of the Bengali matrimonial; it reflects the wealth, prosperity...",
-    image: "https://images.unsplash.com/photo-1594736797933-d0f6a1bc8b18?w=400&h=200&fit=crop",
-    category: "Uncategorized",
-    date: "2024-11-28",
-    author: "Admin"
-  },
-  {
-    id: 5,
-    title: "Tags marriage paper",
-    excerpt: "The traditional Indian marriage is well-off of beautiful traditions and gorgeous rituals that the adherents hold...",
-    image: "https://images.unsplash.com/photo-1520637836862-4d197d17c989?w=400&h=200&fit=crop",
-    category: "Uncategorized",
-    date: "2024-11-20",
-    author: "Admin"
-  },
-  {
-    id: 6,
-    title: "Tags marriage paper matrimonial site in bengali",
-    excerpt: "Recent surveys and data reveal that 47% of customers use matrimonial sites to search for the perfect life partner...",
-    image: "https://images.unsplash.com/photo-1591604129939-f1efa4d9f7fa?w=400&h=200&fit=crop",
-    category: "Uncategorized",
-    date: "2024-11-15",
-    author: "Admin"
-  }
-];
+// Server configuration
+const SERVER_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
 
-const categories = [
-  { name: "Best matrimony site for Bengali", count: 12 },
-  { name: "Uncategorized", count: 48 }
-];
+// Utility function to get full image URL
+const getImageUrl = (imagePath) => {
+  if (!imagePath) return '';
+  if (imagePath.startsWith('http') || imagePath.startsWith('data:')) return imagePath;
+  return `${SERVER_URL}${imagePath}`;
+};
+
+// Default placeholder image
+const DEFAULT_IMAGE = "https://images.unsplash.com/photo-1606800052052-a08af7148866?w=400&h=200&fit=crop";
 
 const BlogPage = () => {
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [searchTerm, setSearchTerm] = useState('');
+  const [blogs, setBlogs] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [featuredBlogs, setFeaturedBlogs] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
 
-  const filteredPosts = blogPosts.filter(post => {
-    const matchesCategory = selectedCategory === 'All' || post.category === selectedCategory;
-    const matchesSearch = post.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                         post.excerpt.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesCategory && matchesSearch;
-  });
+  const { blogApi } = useApi();
+
+  // Fetch published blogs
+  const fetchBlogs = async (page = 1, resetData = false) => {
+    setLoading(true);
+    try {
+      const filters = {
+        page,
+        limit: 6,
+        search: searchTerm || undefined,
+        category: selectedCategory !== 'All' ? selectedCategory : undefined
+      };
+
+      const response = await blogApi.getPublishedBlogs(filters);
+      if (response.success) {
+        if (resetData || page === 1) {
+          setBlogs(response.data.blogs);
+        } else {
+          setBlogs(prev => [...prev, ...response.data.blogs]);
+        }
+        setTotalPages(response.data.pagination.pages);
+        setHasMore(page < response.data.pagination.pages);
+      } else {
+        console.error('Failed to fetch blogs:', response.error);
+      }
+    } catch (error) {
+      console.error('Error fetching blogs:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fetch categories
+  const fetchCategories = async () => {
+    try {
+      const response = await blogApi.getCategories();
+      if (response.success) {
+        setCategories(response.data.categories.map(cat => ({ name: cat, count: 0 })));
+      }
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+    }
+  };
+
+  // Fetch featured blogs
+  const fetchFeaturedBlogs = async () => {
+    try {
+      const response = await blogApi.getFeaturedBlogs(3);
+      if (response.success) {
+        setFeaturedBlogs(response.data.blogs);
+      }
+    } catch (error) {
+      console.error('Error fetching featured blogs:', error);
+    }
+  };
+
+  // Initial data fetch
+  useEffect(() => {
+    fetchBlogs(1, true);
+    fetchCategories();
+    fetchFeaturedBlogs();
+  }, [selectedCategory]);
+
+  // Search effect
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      setCurrentPage(1);
+      fetchBlogs(1, true);
+    }, 500);
+
+    return () => clearTimeout(timeoutId);
+  }, [searchTerm]);
+
+  // Load more blogs
+  const handleLoadMore = () => {
+    const nextPage = currentPage + 1;
+    setCurrentPage(nextPage);
+    fetchBlogs(nextPage, false);
+  };
+
+  // Handle search
+  const handleSearch = (e) => {
+    setSearchTerm(e.target.value);
+  };
+
+  // Handle category change
+  const handleCategoryChange = (category) => {
+    setSelectedCategory(category);
+    setCurrentPage(1);
+  };
+
+  // Truncate text helper
+  const truncateText = (text, maxLength = 150) => {
+    if (!text) return '';
+    return text.length > maxLength ? `${text.substring(0, maxLength)}...` : text;
+  };
+
+  const filteredPosts = blogs;
 
   const BlogCard = ({ post }) => (
     <article className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-lg transition-all duration-300 group">
       <div className="relative overflow-hidden">
         <img 
-          src={post.image} 
+          src={getImageUrl(post.featured_image) || DEFAULT_IMAGE} 
           alt={post.title}
           className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
+          onError={(e) => {
+            e.target.src = DEFAULT_IMAGE;
+          }}
         />
         <div className="absolute top-3 left-3">
           <span className="bg-red-500 text-white px-3 py-1 rounded-full text-xs font-medium">
             {post.category}
           </span>
         </div>
+        {post.is_featured && (
+          <div className="absolute top-3 right-3">
+            <span className="bg-yellow-500 text-white px-3 py-1 rounded-full text-xs font-medium">
+              Featured
+            </span>
+          </div>
+        )}
       </div>
       
       <div className="p-5">
         <div className="flex items-center gap-4 text-xs text-gray-500 mb-3">
           <div className="flex items-center gap-1">
             <Calendar className="h-3 w-3" />
-            <span>{new Date(post.date).toLocaleDateString('en-US', { 
+            <span>{new Date(post.published_at || post.created_at).toLocaleDateString('en-US', { 
               year: 'numeric', 
               month: 'long', 
               day: 'numeric' 
@@ -103,8 +164,14 @@ const BlogPage = () => {
           </div>
           <div className="flex items-center gap-1">
             <User className="h-3 w-3" />
-            <span>{post.author}</span>
+            <span>{post.author_name || 'Admin'}</span>
           </div>
+          {post.views_count > 0 && (
+            <div className="flex items-center gap-1">
+              <Eye className="h-3 w-3" />
+              <span>{post.views_count} views</span>
+            </div>
+          )}
         </div>
         
         <h3 className="text-lg font-semibold text-gray-900 mb-3 line-clamp-2 group-hover:text-red-600 transition-colors">
@@ -112,13 +179,16 @@ const BlogPage = () => {
         </h3>
         
         <p className="text-gray-600 text-sm leading-relaxed mb-4 line-clamp-3">
-          {post.excerpt}
+          {post.excerpt || truncateText(post.content)}
         </p>
         
-        <button className="inline-flex items-center gap-2 text-red-600 font-medium text-sm hover:text-red-700 transition-colors">
+        <Link 
+          to={`/blog/${post.slug || post.id}`}
+          className="inline-flex items-center gap-2 text-red-600 font-medium text-sm hover:text-red-700 transition-colors"
+        >
           Read More 
           <ArrowRight className="h-4 w-4" />
-        </button>
+        </Link>
       </div>
     </article>
   );
@@ -126,7 +196,7 @@ const BlogPage = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-     <MainHeader />    
+     <ResponsiveHeader />    
 
       <div className="max-w-7xl mx-auto px-4 lg:px-8 py-8">
         <div className="grid lg:grid-cols-[300px_1fr] gap-8">
@@ -136,7 +206,7 @@ const BlogPage = () => {
               <h3 className="text-lg font-semibold mb-4">By Category</h3>
               <div className="space-y-2">
                 <button
-                  onClick={() => setSelectedCategory('All')}
+                  onClick={() => handleCategoryChange('All')}
                   className={`block w-full text-left px-3 py-2 rounded transition-colors ${
                     selectedCategory === 'All' 
                       ? 'bg-red-600 text-white' 
@@ -148,7 +218,7 @@ const BlogPage = () => {
                 {categories.map((category) => (
                   <button
                     key={category.name}
-                    onClick={() => setSelectedCategory(category.name)}
+                    onClick={() => handleCategoryChange(category.name)}
                     className={`block w-full text-left px-3 py-2 rounded transition-colors ${
                       selectedCategory === category.name 
                         ? 'bg-red-600 text-white' 
@@ -156,7 +226,6 @@ const BlogPage = () => {
                     }`}
                   >
                     <span className="truncate">{category.name}</span>
-                    <span className="ml-2 text-xs">({category.count})</span>
                   </button>
                 ))}
               </div>
@@ -171,7 +240,7 @@ const BlogPage = () => {
                   type="text"
                   placeholder="Search posts..."
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onChange={handleSearch}
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
                 />
               </div>
@@ -187,18 +256,50 @@ const BlogPage = () => {
             </div>
 
             {/* Blog Grid */}
-            <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6">
-              {filteredPosts.map((post) => (
-                <BlogCard key={post.id} post={post} />
-              ))}
-            </div>
+            {loading && blogs.length === 0 ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600"></div>
+                <span className="ml-3 text-gray-600">Loading blogs...</span>
+              </div>
+            ) : filteredPosts.length === 0 ? (
+              <div className="text-center py-12">
+                <div className="bg-gray-100 rounded-full w-24 h-24 flex items-center justify-center mx-auto mb-4">
+                  <Search className="h-12 w-12 text-gray-400" />
+                </div>
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">No blogs found</h3>
+                <p className="text-gray-600">
+                  {searchTerm || selectedCategory !== 'All'
+                    ? 'Try adjusting your search or category filters.'
+                    : 'No published blogs available at the moment.'}
+                </p>
+              </div>
+            ) : (
+              <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6">
+                {filteredPosts.map((post) => (
+                  <BlogCard key={post.id} post={post} />
+                ))}
+              </div>
+            )}
 
             {/* Load More Button */}
-            <div className="text-center mt-12">
-              <button className="bg-red-600 text-white px-8 py-3 rounded-lg font-medium hover:bg-red-700 transition-colors">
-                Load More Posts
-              </button>
-            </div>
+            {hasMore && filteredPosts.length > 0 && (
+              <div className="text-center mt-12">
+                <button 
+                  onClick={handleLoadMore}
+                  disabled={loading}
+                  className="bg-red-600 text-white px-8 py-3 rounded-lg font-medium hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-2"
+                >
+                  {loading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      Loading...
+                    </>
+                  ) : (
+                    'Load More Posts'
+                  )}
+                </button>
+              </div>
+            )}
           </main>
         </div>
       </div>

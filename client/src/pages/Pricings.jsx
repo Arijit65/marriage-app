@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Check, Star, Video, FileText, Users, Shield, Crown, Zap, Heart, Gift, ArrowRight, Info, Clock, Award, Phone, Globe } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import MainHeader from "../Components/mainHeader";
+import ResponsiveHeader from "../Components/ResponsiveHeader";
 import Footer from "../Components/Footer";
 
 const PlansSection = () => {
@@ -213,7 +213,7 @@ const PlansSection = () => {
 
     return (
         <>
-            <MainHeader/>
+            <ResponsiveHeader/>
             <section className="py-5 bg-white relative overflow-hidden">
                 {/* Background decorative elements - UNCHANGED */}
                 <div className="absolute inset-0 bg-gradient-to-br from-red-50/30 to-yellow-50/30"></div>

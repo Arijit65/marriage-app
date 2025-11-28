@@ -9,9 +9,10 @@ const userRoutes = require('./userRoutes');
 const planRoutes = require('./planRoutes');
 const adRoutes = require('./adRoutes');
 const paymentRoutes = require('./paymentRoutes');
+const adminRoutes = require('./adminRoutes');
 
-// API version prefix
-const API_VERSION = '/api/v1';
+// API prefix
+const API_PREFIX = '/api';
 
 // Health check route
 router.get('/health', (req, res) => {
@@ -31,26 +32,28 @@ router.get('/docs', (req, res) => {
     message: 'API Documentation',
     version: '1.0.0',
             endpoints: {
-          auth: `${API_VERSION}/auth`,
-          profiles: `${API_VERSION}/profiles`,
-          proposals: `${API_VERSION}/proposals`,
-          users: `${API_VERSION}/users`,
-          plans: `${API_VERSION}/plans`,
-          ads: `${API_VERSION}/ads`,
-          payments: `${API_VERSION}/payments`
+          auth: `${API_PREFIX}/auth`,
+          profiles: `${API_PREFIX}/profiles`,
+          proposals: `${API_PREFIX}/proposals`,
+          users: `${API_PREFIX}/users`,
+          plans: `${API_PREFIX}/plans`,
+          ads: `${API_PREFIX}/ads`,
+          payments: `${API_PREFIX}/payments`,
+          admin: `${API_PREFIX}/admin`
         },
     documentation: 'https://docs.marriageapp.com/api'
   });
 });
 
 // Mount route modules
-router.use(`${API_VERSION}/auth`, authRoutes);
-router.use(`${API_VERSION}/profiles`, profileRoutes);
-router.use(`${API_VERSION}/proposals`, proposalRoutes);
-router.use(`${API_VERSION}/users`, userRoutes);
-router.use(`${API_VERSION}/plans`, planRoutes);
-router.use(`${API_VERSION}/ads`, adRoutes);
-router.use(`${API_VERSION}/payments`, paymentRoutes);
+router.use(`${API_PREFIX}/auth`, authRoutes);
+router.use(`${API_PREFIX}/profiles`, profileRoutes);
+router.use(`${API_PREFIX}/proposals`, proposalRoutes);
+router.use(`${API_PREFIX}/users`, userRoutes);
+router.use(`${API_PREFIX}/plans`, planRoutes);
+router.use(`${API_PREFIX}/ads`, adRoutes);
+router.use(`${API_PREFIX}/payments`, paymentRoutes);
+router.use(`${API_PREFIX}/admin`, adminRoutes);
 
 // 404 handler for undefined routes
 router.use('*', (req, res) => {

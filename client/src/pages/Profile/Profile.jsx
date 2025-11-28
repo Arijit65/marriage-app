@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { CheckCircle, ChevronLeft, ChevronRight, Eye, ShieldCheck, Heart, Play, MessageCircle, X, Send } from "lucide-react";
-import MainHeader from "../../Components/mainHeader";
+import ResponsiveHeader from "../../Components/ResponsiveHeader";
 import Footer from "../../Components/Footer";
 import { useAuth } from "../../context/AuthContext";
 
@@ -19,7 +19,7 @@ export default function IndividualProfilePage() {
   const [proposalLoading, setProposalLoading] = useState(false);
   const [proposalError, setProposalError] = useState(null);
   const [proposalSent, setProposalSent] = useState(false);
-  const backendUrl = import.meta.env.VITE_BACKEND_URL
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
   // Static profile data as fallback
   const staticProfiles = {
     "B25102-B": {
@@ -165,7 +165,7 @@ export default function IndividualProfilePage() {
       setError(null);
 
       // Try to fetch from API first
-      const response = await fetch(`${backendUrl}/api/profile/public/${id}`);
+      const response = await fetch(`${API_URL}/profile/public/${id}`);
       
       if (response.ok) {
         const data = await response.json();
@@ -303,7 +303,7 @@ export default function IndividualProfilePage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <MainHeader />
+        <ResponsiveHeader />
         <div className="flex items-center justify-center min-h-[60vh]">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-500 mx-auto mb-4"></div>
@@ -319,7 +319,7 @@ export default function IndividualProfilePage() {
   if (error || !profile) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <MainHeader />
+        <ResponsiveHeader />
         <div className="flex items-center justify-center min-h-[60vh]">
           <div className="text-center">
             <div className="bg-red-100 rounded-full p-4 mx-auto mb-4 w-16 h-16 flex items-center justify-center">
@@ -342,7 +342,7 @@ export default function IndividualProfilePage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <MainHeader />
+      <ResponsiveHeader />
       <section className="w-full">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6">
           {/* Back link */}

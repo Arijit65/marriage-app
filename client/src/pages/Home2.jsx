@@ -1,5 +1,5 @@
 import React from 'react'
-import MainHeader from '../Components/mainHeader'
+import ResponsiveHeader from '../Components/ResponsiveHeader'
 //import RegistrationForm from '../Components/Registrationform'
 import HeroRegistration from '../Components/HeroFields'
 import WelcomeSection from '../Components/Welcome'
@@ -12,7 +12,7 @@ import Footer from '../Components/Footer'
 const Home2 = () => {
   return (
     <div>
-       <MainHeader/>
+       <ResponsiveHeader/>
       <div id='hero' >
       <HeroRegistration/>
       </div>

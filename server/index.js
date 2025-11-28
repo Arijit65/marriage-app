@@ -13,6 +13,8 @@ const planRoutes = require('./routes/planRoutes');
 const paymentRoutes = require('./routes/paymentRoutes');
 const rrRoutes = require('./routes/rrRoutes');
 const proposalRoutes = require('./routes/proposalRoutes');
+const adminRoutes = require('./routes/adminRoutes');
+const blogRoutes = require('./routes/blogRoutes');
 // const adRoutes = require('./routes/adRoutes');
 
 
@@ -43,10 +45,12 @@ app.use('/uploads', express.static('uploads'));
 app.use('/api/auth', authRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/users', userRoutes);
-app.use('/api/v1/plans', planRoutes);
-app.use('/api/v1/payments', paymentRoutes);
+app.use('/api/plans', planRoutes);
+app.use('/api/payments', paymentRoutes);
 app.use('/api/rr', rrRoutes);
-app.use('/api/v1/proposals', proposalRoutes);
+app.use('/api/proposals', proposalRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/blogs', blogRoutes);
 // app.use('/api/ads', adRoutes);
 
 // Error handling middleware (must be after all routes)

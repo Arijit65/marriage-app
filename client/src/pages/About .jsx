@@ -1,5 +1,5 @@
 import React from 'react'
-import MainHeader from '../Components/mainHeader'
+import ResponsiveHeader from '../Components/ResponsiveHeader'
 import Footer from '../Components/Footer'
 import StatsSection from '../Components/AnimatedStats'
 import { CheckCircle, CreditCard, Eye, Headphones, MessageCircle, Shield } from 'lucide-react'
@@ -40,7 +40,7 @@ const About = () => {
 
   return (
     <div>
-      <MainHeader />
+      <ResponsiveHeader />
       <section className="py-16 bg-white relative overflow-hidden">
         <div className="max-w-7xl mx-auto px-6 grid lg:grid-cols-2 gap-12 items-start">
 

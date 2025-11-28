@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-const { User } = require('../models');
+const { User, Admin } = require('../models');
 const { logger } = require('../utils/logger');
 const { validationResult } = require('express-validator');
 
@@ -282,6 +282,125 @@ const validateRequest = (req, res, next) => {
 // Check profile completion (alias for requireProfileCompletion)
 const checkProfileCompletion = requireProfileCompletion;
 
+// Admin authentication middleware
+const authenticateAdmin = async (req, res, next) => {
+  try {
+    const token = req.header('Authorization')?.replace('Bearer ', '');
+    
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'Access denied. No token provided.'
+      });
+    }
+
+    // Verify token
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+    
+    // Check if token is for admin
+    if (decoded.type !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Admin privileges required.'
+      });
+    }
+
+    // Find admin
+    const admin = await Admin.findByPk(decoded.id);
+
+    if (!admin) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid token. Admin not found.'
+      });
+    }
+
+    // Check if admin is active
+    if (!admin.is_active) {
+      return res.status(401).json({
+        success: false,
+        message: 'Admin account is deactivated. Please contact super admin.'
+      });
+    }
+
+    // Check if account is locked
+    if (admin.isAccountLocked()) {
+      const lockTime = new Date(admin.locked_until).toLocaleString();
+      return res.status(401).json({
+        success: false,
+        message: `Account is locked until ${lockTime} due to multiple failed login attempts.`
+      });
+    }
+
+    // Add admin to request
+    req.admin = admin;
+    req.adminId = admin.id;
+
+    next();
+  } catch (error) {
+    logger.error('Admin authentication error:', error);
+    
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid token.'
+      });
+    }
+    
+    if (error.name === 'TokenExpiredError') {
+      return res.status(401).json({
+        success: false,
+        message: 'Token expired. Please login again.'
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error during authentication.'
+    });
+  }
+};
+
+// Require super admin middleware
+const requireSuperAdmin = (req, res, next) => {
+  if (!req.admin) {
+    return res.status(401).json({
+      success: false,
+      message: 'Authentication required.'
+    });
+  }
+
+  if (req.admin.role !== 'super_admin') {
+    return res.status(403).json({
+      success: false,
+      message: 'Access denied. Super admin privileges required.'
+    });
+  }
+
+  next();
+};
+
+// Check admin permission middleware
+const requireAdminPermission = (permission) => {
+  return (req, res, next) => {
+    if (!req.admin) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication required.'
+      });
+    }
+
+    if (!req.admin.hasPermission(permission)) {
+      return res.status(403).json({
+        success: false,
+        message: `Access denied. Permission '${permission}' required.`
+      });
+    }
+
+    next();
+  };
+};
+
 module.exports = {
   authMiddleware,
   optionalAuthMiddleware,
@@ -293,8 +412,12 @@ module.exports = {
   generateToken,
   verifyToken,
   validateRequest,
-  checkProfileCompletion, // Add this export
+  checkProfileCompletion,
   authenticate: authMiddleware,
   generateJWT: generateToken,
-  verifyJWT: verifyToken
+  verifyJWT: verifyToken,
+  // Admin authentication
+  authenticateAdmin,
+  requireSuperAdmin,
+  requireAdminPermission
 };

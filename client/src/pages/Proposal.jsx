@@ -1,12 +1,12 @@
 import React from 'react';
 import Sidebar from '../Components/Sidebar';
-import MainHeader from '../Components/mainHeader';
+import ResponsiveHeader from '../Components/ResponsiveHeader';
 
 const Proposal = () => {
   return (
     <div className="min-h-screen bg-white">
       {/* Header */}
-      <MainHeader />
+      <ResponsiveHeader />
       
       {/* Main Content with Sidebar - Centered */}
       <div className="flex justify-center">

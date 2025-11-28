@@ -14,11 +14,7 @@ const AdminAuth = () => {
   const navigate = useNavigate();
   const { adminLogin } = useAuth();
 
-  // Hardcoded admin credentials
-  const ADMIN_CREDENTIALS = {
-    email: 'admin@marriageapp.com',
-    password: 'admin123'
-  };
+  const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -62,32 +58,54 @@ const AdminAuth = () => {
     }
 
     setIsLoading(true);
+    setErrors({});
 
-    // Simulate API call delay
-    setTimeout(() => {
-      if (formData.email === ADMIN_CREDENTIALS.email && formData.password === ADMIN_CREDENTIALS.password) {
-        // Use auth context to login
-        const adminData = {
+    try {
+      const response = await fetch(`${API_BASE_URL}/admin/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
           email: formData.email,
-          role: 'admin',
-          name: 'Admin User'
-        };
-        console.log('🔑 AdminAuth: About to call adminLogin with:', adminData);
-        adminLogin(adminData, 'admin-auth-token');
-        console.log('🔑 AdminAuth: adminLogin called, waiting before navigation');
+          password: formData.password
+        })
+      });
 
-        // Wait a bit for state to update before navigation
-        setTimeout(() => {
-          console.log('🔑 AdminAuth: Now navigating to admin-panel');
-          navigate('/admin-panel');
-        }, 100);
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        const adminData = {
+          id: data.data.admin.id,
+          email: data.data.admin.email,
+          name: data.data.admin.name,
+          role: data.data.admin.role,
+          permissions: data.data.admin.permissions,
+          isActive: data.data.admin.is_active
+        };
+
+        console.log('🔑 AdminAuth: Logging in admin with:', adminData);
+        
+        // Call adminLogin - this updates both state and localStorage
+        adminLogin(adminData, data.data.token);
+        
+        console.log('✅ AdminAuth: Login successful, navigating to admin-panel');
+        
+        // Navigate immediately - ProtectedRoute will handle the auth check
+        navigate('/admin-panel', { replace: true });
       } else {
         setErrors({
-          general: 'Invalid email or password. Please try again.'
+          general: data.message || 'Invalid email or password. Please try again.'
         });
       }
+    } catch (error) {
+      console.error('Admin login error:', error);
+      setErrors({
+        general: 'Network error. Please check your connection and try again.'
+      });
+    } finally {
       setIsLoading(false);
-    }, 1000);
+    }
   };
 
   const togglePasswordVisibility = () => {
@@ -205,13 +223,12 @@ const AdminAuth = () => {
             </button>
           </form>
 
-          {/* Demo Credentials */}
-          <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-            <h4 className="text-sm font-medium text-gray-700 mb-2">Demo Credentials:</h4>
-            <div className="text-xs text-gray-600 space-y-1">
-              <p><strong>Email:</strong> admin@marriageapp.com</p>
-              <p><strong>Password:</strong> admin123</p>
-            </div>
+          {/* Info Note */}
+          <div className="mt-6 p-4 bg-blue-50 rounded-lg">
+            <h4 className="text-sm font-medium text-blue-900 mb-2">Admin Access</h4>
+            <p className="text-xs text-blue-700">
+              Please contact your super admin to obtain login credentials.
+            </p>
           </div>
         </div>
 

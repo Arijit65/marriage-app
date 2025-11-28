@@ -8,9 +8,9 @@ const ApiContext = createContext();
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 export const ApiProvider = ({ children }) => {
-  const { token } = useAuth();
+  const { token, adminToken, rrToken } = useAuth();
 
-  // Create axios instance
+  // Create axios instance for regular users
   const api = axios.create({
     baseURL: API_URL,
     headers: {
@@ -18,7 +18,23 @@ export const ApiProvider = ({ children }) => {
     },
   });
 
-  // Add auth token to requests
+  // Create axios instance for admin users
+  const adminApi = axios.create({
+    baseURL: API_URL,
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
+
+  // Create axios instance for RR users
+  const rrApi = axios.create({
+    baseURL: API_URL,
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
+
+  // Add auth token to regular requests
   api.interceptors.request.use(
     (config) => {
       if (token) {
@@ -31,25 +47,73 @@ export const ApiProvider = ({ children }) => {
     }
   );
 
-  // Handle response errors
+  // Add admin token to admin requests
+  adminApi.interceptors.request.use(
+    (config) => {
+      if (adminToken) {
+        config.headers.Authorization = `Bearer ${adminToken}`;
+        console.log('🔑 Admin API request with token:', adminToken.substring(0, 10) + '...');
+      } else {
+        console.log('⚠️ Admin API request WITHOUT token');
+      }
+      return config;
+    },
+    (error) => {
+      return Promise.reject(error);
+    }
+  );
+
+  // Add RR token to RR requests
+  rrApi.interceptors.request.use(
+    (config) => {
+      if (rrToken) {
+        config.headers.Authorization = `Bearer ${rrToken}`;
+      }
+      return config;
+    },
+    (error) => {
+      return Promise.reject(error);
+    }
+  );
+
+  // Handle response errors for regular API
   api.interceptors.response.use(
     (response) => response,
     (error) => {
       if (error.response?.status === 401) {
         // Token expired or invalid
         localStorage.removeItem('token');
-        localStorage.removeItem('adminToken');
-        localStorage.removeItem('rrToken');
+        localStorage.removeItem('user');
+        window.location.href = '/login';
+      }
+      return Promise.reject(error);
+    }
+  );
 
-        // Check current path to determine where to redirect
-        const currentPath = window.location.pathname;
-        if (currentPath.includes('/admin') || currentPath.includes('/admin-')) {
-          window.location.href = '/admin-login';
-        } else if (currentPath.includes('/rr') || currentPath.includes('/rr-')) {
-          window.location.href = '/rr-login';
-        } else {
-          window.location.href = '/login';
-        }
+  // Handle response errors for admin API
+  adminApi.interceptors.response.use(
+    (response) => response,
+    (error) => {
+      if (error.response?.status === 401) {
+        // Admin token expired or invalid
+        localStorage.removeItem('adminToken');
+        localStorage.removeItem('adminUser');
+        console.log('🔴 Admin token expired, redirecting to admin login');
+        window.location.href = '/admin-login';
+      }
+      return Promise.reject(error);
+    }
+  );
+
+  // Handle response errors for RR API
+  rrApi.interceptors.response.use(
+    (response) => response,
+    (error) => {
+      if (error.response?.status === 401) {
+        // RR token expired or invalid
+        localStorage.removeItem('rrToken');
+        localStorage.removeItem('rrUser');
+        window.location.href = '/rr-login';
       }
       return Promise.reject(error);
     }
@@ -129,6 +193,17 @@ export const ApiProvider = ({ children }) => {
         return { success: true, data: res.data.data };
       } catch (error) {
         return { success: false, error: error.response?.data?.message || 'Failed to fetch profile stats' };
+      }
+    },
+
+    // Get advertisement profiles for AddSection component
+    getAdProfiles: async (filters = {}) => {
+      try {
+        const res = await api.get('/profile/ad-profiles', { params: filters });
+        return { success: true, data: res.data.data };
+      } catch (error) {
+        console.error('Failed to fetch ad profiles:', error);
+        return { success: false, error: error.response?.data?.message || 'Failed to fetch ad profiles' };
       }
     }
   };
@@ -355,13 +430,235 @@ export const ApiProvider = ({ children }) => {
     }
   };
 
+  // Blog API methods
+  const blogApi = {
+    // Get all blogs (admin)
+    getAllBlogs: async (filters = {}) => {
+      try {
+        const res = await adminApi.get('/blogs/all', { params: filters });
+        return { success: true, data: res.data.data };
+      } catch (error) {
+        return { success: false, error: error.response?.data?.message || 'Failed to fetch blogs' };
+      }
+    },
+
+    // Create new blog
+    createBlog: async (blogData) => {
+      try {
+        const formData = new FormData();
+        
+        // Add text fields
+        Object.keys(blogData).forEach(key => {
+          if (key === 'tags' && Array.isArray(blogData[key])) {
+            formData.append(key, JSON.stringify(blogData[key]));
+          } else if (key === 'images' && Array.isArray(blogData[key])) {
+            blogData[key].forEach(file => {
+              formData.append('images', file);
+            });
+          } else if (key !== 'images') {
+            formData.append(key, blogData[key]);
+          }
+        });
+
+        const res = await adminApi.post('/blogs/create', formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        });
+        return { success: true, data: res.data.data };
+      } catch (error) {
+        return { success: false, error: error.response?.data?.message || 'Failed to create blog' };
+      }
+    },
+
+    // Update blog
+    updateBlog: async (blogId, blogData) => {
+      try {
+        const formData = new FormData();
+        
+        Object.keys(blogData).forEach(key => {
+          if (key === 'tags' && Array.isArray(blogData[key])) {
+            formData.append(key, JSON.stringify(blogData[key]));
+          } else if (key === 'images' && Array.isArray(blogData[key])) {
+            blogData[key].forEach(file => {
+              formData.append('images', file);
+            });
+          } else if (key !== 'images') {
+            formData.append(key, blogData[key]);
+          }
+        });
+
+        const res = await adminApi.put(`/blogs/${blogId}`, formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        });
+        return { success: true, data: res.data.data };
+      } catch (error) {
+        return { success: false, error: error.response?.data?.message || 'Failed to update blog' };
+      }
+    },
+
+    // Delete blog
+    deleteBlog: async (blogId) => {
+      try {
+        const res = await adminApi.delete(`/blogs/${blogId}`);
+        return { success: true, data: res.data };
+      } catch (error) {
+        return { success: false, error: error.response?.data?.message || 'Failed to delete blog' };
+      }
+    },
+
+    // Publish blog
+    publishBlog: async (blogId) => {
+      try {
+        const res = await adminApi.post(`/blogs/${blogId}/publish`);
+        return { success: true, data: res.data.data };
+      } catch (error) {
+        return { success: false, error: error.response?.data?.message || 'Failed to publish blog' };
+      }
+    },
+
+    // Get blog by ID
+    getBlog: async (blogId) => {
+      try {
+        const res = await adminApi.get(`/blogs/${blogId}`);
+        return { success: true, data: res.data.data };
+      } catch (error) {
+        return { success: false, error: error.response?.data?.message || 'Failed to fetch blog' };
+      }
+    },
+
+    // Get blog categories
+    getCategories: async () => {
+      try {
+        const res = await api.get('/blogs/categories');
+        return { success: true, data: res.data.data };
+      } catch (error) {
+        return { success: false, error: error.response?.data?.message || 'Failed to fetch categories' };
+      }
+    },
+
+    // Public blog API methods (no authentication required)
+    getPublishedBlogs: async (filters = {}) => {
+      try {
+        const res = await api.get('/blogs/published', { params: filters });
+        return { success: true, data: res.data.data };
+      } catch (error) {
+        return { success: false, error: error.response?.data?.message || 'Failed to fetch published blogs' };
+      }
+    },
+
+    // Get single published blog by ID or slug
+    getPublishedBlog: async (identifier) => {
+      try {
+        const res = await api.get(`/blogs/view/${identifier}`);
+        return { success: true, data: res.data.data };
+      } catch (error) {
+        return { success: false, error: error.response?.data?.message || 'Failed to fetch blog' };
+      }
+    },
+
+    // Get featured blogs
+    getFeaturedBlogs: async (limit = 5) => {
+      try {
+        const res = await api.get('/blogs/featured', { params: { limit } });
+        return { success: true, data: res.data.data };
+      } catch (error) {
+        return { success: false, error: error.response?.data?.message || 'Failed to fetch featured blogs' };
+      }
+    }
+  };
+
+  // Admin API methods
+  const adminApi_methods = {
+    // Get admin profile
+    getProfile: async () => {
+      try {
+        const res = await adminApi.get('/admin/profile');
+        return { success: true, data: res.data.data };
+      } catch (error) {
+        return { success: false, error: error.response?.data?.message || 'Failed to fetch admin profile' };
+      }
+    },
+
+    // Get user statistics for admin dashboard
+    getUserStats: async () => {
+      try {
+        const res = await adminApi.get('/admin/users/stats');
+        return { success: true, data: res.data.data };
+      } catch (error) {
+        console.error('Admin getUserStats error:', error);
+        return { success: false, error: error.response?.data?.message || 'Failed to fetch user stats' };
+      }
+    },
+
+    // Get users by status (for member listing)
+    getUsersByStatus: async (status, page = 1, limit = 10, search = '') => {
+      try {
+        const params = { status, page, limit };
+        if (search) params.search = search;
+        
+        const res = await adminApi.get('/admin/users', { params });
+        return { success: true, data: res.data.data };
+      } catch (error) {
+        console.error('Admin getUsersByStatus error:', error);
+        return { success: false, error: error.response?.data?.message || 'Failed to fetch users' };
+      }
+    },
+
+    // Update user status
+    updateUserStatus: async (userId, status, reason = '') => {
+      try {
+        const res = await adminApi.put(`/admin/users/${userId}/status`, { status, reason });
+        return { success: true, data: res.data.data };
+      } catch (error) {
+        return { success: false, error: error.response?.data?.message || 'Failed to update user status' };
+      }
+    },
+
+    // Delete user
+    deleteUser: async (userId) => {
+      try {
+        const res = await adminApi.delete(`/admin/users/${userId}`);
+        return { success: true, data: res.data.data };
+      } catch (error) {
+        return { success: false, error: error.response?.data?.message || 'Failed to delete user' };
+      }
+    },
+
+    // Get all admins (super admin only)
+    getAllAdmins: async () => {
+      try {
+        const res = await adminApi.get('/admin/list');
+        return { success: true, data: res.data.data };
+      } catch (error) {
+        return { success: false, error: error.response?.data?.message || 'Failed to fetch admins' };
+      }
+    },
+
+    // Create new admin (super admin only)
+    createAdmin: async (adminData) => {
+      try {
+        const res = await adminApi.post('/admin/create', adminData);
+        return { success: true, data: res.data.data };
+      } catch (error) {
+        return { success: false, error: error.response?.data?.message || 'Failed to create admin', errors: error.response?.data?.errors };
+      }
+    }
+  };
+
   const value = {
     api,
+    adminApi,
+    rrApi,
     profileApi,
     proposalApi,
     planApi,
     uploadApi,
-    userApi
+    userApi,
+    adminApi_methods,
+    blogApi
   };
 
   return (

@@ -14,16 +14,18 @@ const safeParseJSON = (key) => {
   }
 };
 
-// Initial state
+// Initial state - Load from localStorage immediately
 const initialState = {
   user: null,
   token: localStorage.getItem('token'),
   isAuthenticated: false,
   loading: true,
   error: null,
-  // Add admin and RR user states
+  // Add admin and RR user states - initialize from localStorage
   adminUser: safeParseJSON('adminUser'),
+  adminToken: localStorage.getItem('adminToken'),
   rrUser: safeParseJSON('rrUser'),
+  rrToken: localStorage.getItem('rrToken'),
   // Add user phone for display
   userPhone: localStorage.getItem('userPhone') || ''
 };
@@ -96,6 +98,8 @@ const authReducer = (state, action) => {
       return {
         ...state,
         adminUser: action.payload.user,
+        adminToken: action.payload.token,
+        loading: false,
         error: null
       };
     case AUTH_ACTIONS.RR_LOGIN:
@@ -104,6 +108,8 @@ const authReducer = (state, action) => {
       return {
         ...state,
         rrUser: action.payload.user,
+        rrToken: action.payload.token,
+        loading: false,
         error: null
       };
     case AUTH_ACTIONS.ADMIN_LOGOUT:
@@ -111,14 +117,16 @@ const authReducer = (state, action) => {
       localStorage.removeItem('adminUser');
       return {
         ...state,
-        adminUser: null
+        adminUser: null,
+        adminToken: null
       };
     case AUTH_ACTIONS.RR_LOGOUT:
       localStorage.removeItem('rrToken');
       localStorage.removeItem('rrUser');
       return {
         ...state,
-        rrUser: null
+        rrUser: null,
+        rrToken: null
       };
     case AUTH_ACTIONS.SET_USER_PHONE:
       localStorage.setItem('userPhone', action.payload);
@@ -156,9 +164,6 @@ export const AuthProvider = ({ children }) => {
     
     if (token && userData) {
       try {
-        // Parse stored user data
-        const user = JSON.parse(userData);
-        
         // Verify token by making API call to get current user profile
         const response = await axios.get('/auth/profile', {
           headers: {
@@ -461,10 +466,10 @@ export const AuthProvider = ({ children }) => {
     // Add admin and RR states
     adminUser: state.adminUser,
     rrUser: state.rrUser,
-    rrToken: localStorage.getItem('rrToken'),
-    adminToken: localStorage.getItem('adminToken'),
-    isAdminAuthenticated: !!state.adminUser,
-    isRRAuthenticated: !!state.rrUser,
+    rrToken: state.rrToken,
+    adminToken: state.adminToken,
+    isAdminAuthenticated: !!(state.adminUser && state.adminToken),
+    isRRAuthenticated: !!(state.rrUser && state.rrToken),
     // Add user phone for display
     userPhone: state.userPhone,
     // Original functions
