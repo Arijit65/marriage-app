@@ -1,10 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const proposalController = require('../controllers/proposalController');
-const { authenticate, checkProfileCompletion } = require('../middleware/auth');
+const { authenticate, checkProfileCompletion, authenticateAdmin } = require('../middleware/auth');
 
 // Proposal management routes
-router.post('/send', authenticate, checkProfileCompletion, proposalController.sendProposal);
+router.post('/send', authenticate, proposalController.sendProposal);
 router.get('/sent', authenticate, proposalController.getSentProposals);
 router.get('/received', authenticate, proposalController.getReceivedProposals);
 router.get('/recent', authenticate, proposalController.getRecentProposals);
@@ -16,5 +16,8 @@ router.delete('/:proposalId/withdraw', authenticate, proposalController.withdraw
 
 // Statistics routes
 router.get('/stats/overview', authenticate, proposalController.getProposalStats);
+
+// Admin routes
+router.get('/admin/all', authenticateAdmin, proposalController.getAllProposalsForAdmin);
 
 module.exports = router;

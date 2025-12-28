@@ -211,21 +211,55 @@ export const ApiProvider = ({ children }) => {
   // Proposal API methods
   const proposalApi = {
     // Send proposal
-    sendProposal: async (receiverId, message = '') => {
+    sendProposal: async (proposedUserId, message = '') => {
       try {
-        const res = await api.post('/proposals/send', { receiverId, message });
-        return { success: true, data: res.data.data };
+        console.log('📤 API Context: Sending proposal', { proposedUserId, message: message ? 'Present' : 'Empty' });
+        const res = await api.post('/proposals/send', { proposedUserId, message });
+        console.log('✅ API Context: Proposal response received', res.data);
+        return { 
+          success: true, 
+          data: res.data.data, 
+          message: res.data.message || 'Proposal sent successfully!' 
+        };
       } catch (error) {
-        return { success: false, error: error.response?.data?.message || 'Failed to send proposal' };
+        console.error('❌ API Context: Proposal failed', {
+          status: error.response?.status,
+          data: error.response?.data,
+          message: error.message
+        });
+        return { 
+          success: false, 
+          error: error.response?.data?.message || error.message || 'Failed to send proposal. Please try again.' 
+        };
       }
     },
 
     // Get sent proposals
     getSentProposals: async (filters = {}) => {
       try {
-        const res = await api.get('/proposals/sent', { params: filters });
+        console.log('🔍 getSentProposals called with filters:', filters);
+        console.log('🔑 Token from useAuth:', token ? `${token.substring(0, 20)}...` : 'NO TOKEN');
+        
+        const res = await api.get('/proposals/sent'
+          ,{ params: filters }
+          );
+        
+        console.log('📦 Full axios response:', res);
+        console.log('📦 Response status:', res.status);
+        console.log('📦 Response headers:', res.headers);
+        console.log('📦 Response data:', res.data);
+        console.log('📦 Response data.data:', res.data.data);
+        console.log('📦 Response data.data type:', typeof res.data.data);
+        
+        if (res.data.data && typeof res.data.data === 'object') {
+          console.log('📦 Response data.data.proposals:', res.data.data.proposals);
+          console.log('📦 Proposals length:', res.data.data.proposals?.length);
+        }
+        
         return { success: true, data: res.data.data };
       } catch (error) {
+        console.error('❌ getSentProposals error:', error);
+        console.error('❌ Error response:', error.response);
         return { success: false, error: error.response?.data?.message || 'Failed to fetch sent proposals' };
       }
     },

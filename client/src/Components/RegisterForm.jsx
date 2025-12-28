@@ -297,10 +297,6 @@ export default function PostAdForm({ referCode }) {
         })
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
       const result = await response.json();
       
       if (result.success) {
@@ -311,7 +307,15 @@ export default function PostAdForm({ referCode }) {
           alert('OTP sent successfully! Please check your phone for the verification code.');
         }
       } else {
-        alert(result.error || 'Failed to send OTP');
+        // Extract error message from backend response
+        const errorMessage = result.message || result.error || 'Failed to send OTP';
+        
+        // Check if it's a duplicate phone number error
+        if (response.status === 400 && errorMessage.toLowerCase().includes('already exists')) {
+          alert(`⚠️ This phone number is already registered!\n\nPlease try to login using this number instead of registering again.\n\nIf you forgot your password, please use the "Forgot Password" option.`);
+        } else {
+          alert(errorMessage);
+        }
       }
     } catch (error) {
       console.error('Error sending OTP:', error);
@@ -573,6 +577,11 @@ export default function PostAdForm({ referCode }) {
                     name="dateOfBirth"
                     value={formData.dateOfBirth}
                     onChange={handleInputChange}
+                    max={(() => {
+                      const today = new Date();
+                      const maxDate = new Date(today.getFullYear() - 18, today.getMonth(), today.getDate());
+                      return maxDate.toISOString().split('T')[0];
+                    })()}
                     className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-red-300 focus:border-red-300 outline-none transition-colors"
                     required
                   />

@@ -7,6 +7,7 @@ import {
 import { useAuth } from "../../context";
 import { useNavigate } from 'react-router-dom';
 import EditProfile from './EditProfile';
+import ProposalTracker from './ProposalTracker';
 
 const SidebarItem = ({ icon: Icon, label, active, onClick }) => (
   <button
@@ -101,13 +102,6 @@ export default function Dashboard() {
     switch (currentView) {
       case 'editProfile':
         return <EditProfile user={user} />;
-      case 'myProfile':
-        return (
-          <div className="text-center py-16">
-            <h2 className="text-2xl font-bold text-gray-800 mb-4">My Profile View</h2>
-            <p className="text-gray-600">Profile view coming soon...</p>
-          </div>
-        );
       case 'additionalPhoto':
         return (
           <div className="text-center py-16">
@@ -115,6 +109,8 @@ export default function Dashboard() {
             <p className="text-gray-600">Photo management coming soon...</p>
           </div>
         );
+      case 'proposalsTracker':
+        return <ProposalTracker user={user} />;
       case 'dashboard':
       default:
         return renderDashboardContent();
@@ -437,10 +433,10 @@ export default function Dashboard() {
                 onClick={() => setCurrentView('dashboard')}
               />
               <SidebarItem
-                icon={Eye}
-                label="My Profile View"
-                active={currentView === 'myProfile'}
-                onClick={() => setCurrentView('myProfile')}
+                icon={ListChecks}
+                label="My Proposals Tracker"
+                active={currentView === 'proposalsTracker'}
+                onClick={() => setCurrentView('proposalsTracker')}
               />
               <SidebarItem
                 icon={Edit3}
@@ -459,12 +455,6 @@ export default function Dashboard() {
                 label="AD Circulation Report"
                 active={currentView === 'circulationReport'}
                 onClick={() => setCurrentView('circulationReport')}
-              />
-              <SidebarItem
-                icon={ListChecks}
-                label="My Proposals Tracker"
-                active={currentView === 'proposalsTracker'}
-                onClick={() => setCurrentView('proposalsTracker')}
               />
               <SidebarItem
                 icon={CreditCard}

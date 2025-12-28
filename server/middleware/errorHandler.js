@@ -51,8 +51,14 @@ class RateLimitError extends AppError {
 
 // Error handler middleware
 const errorHandler = (err, req, res, next) => {
+  // Prevent middleware from calling next if headers already sent
+  if (res.headersSent) {
+    return next(err);
+  }
+
   let error = { ...err };
   error.message = err.message;
+  error.statusCode = err.statusCode || 500;
 
   // Log error to console for debugging
   console.error('Error occurred:', {
@@ -157,7 +163,7 @@ const errorHandler = (err, req, res, next) => {
   }
 
   // Production error response
-  if (error.isOperational) {
+  if (error.isOperational || error.statusCode < 500) {
     return res.status(error.statusCode).json({
       success: false,
       message: error.message,
@@ -165,12 +171,13 @@ const errorHandler = (err, req, res, next) => {
     });
   }
 
-  // Programming or unknown errors
+  // Programming or unknown errors - still send response, don't crash
   console.error('Unhandled error:', error);
   
-  return res.status(500).json({
+  // Always send a response, never crash
+  return res.status(error.statusCode || 500).json({
     success: false,
-    message: 'Something went wrong'
+    message: process.env.NODE_ENV === 'production' ? 'Something went wrong' : error.message
   });
 };
 

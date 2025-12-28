@@ -777,6 +777,7 @@ class ProfileController {
       // Format response to match the expected structure
       const formattedProfile = {
         id: profileId,
+        userId: user.id, // Add actual user ID for proposal checking
         views: Math.floor(Math.random() * 200) + 50, // Random view count for demo
         adType: `${memberType} Member`,
         verified: verified,

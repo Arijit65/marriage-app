@@ -8,6 +8,8 @@ const authMiddleware = async (req, res, next) => {
   try {
     const token = req.header('Authorization')?.replace('Bearer ', '');
     
+    console.log('🔐 Auth Middleware - Token received:', token ? 'YES' : 'NO');
+    
     if (!token) {
       return res.status(401).json({
         success: false,
@@ -18,8 +20,24 @@ const authMiddleware = async (req, res, next) => {
     // Verify token
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
     
+    console.log('🔓 Auth Middleware - Decoded token:', decoded);
+    console.log('🔍 Auth Middleware - Looking for user ID:', decoded.userId || decoded.id);
+    
+    // Try to get userId from decoded token (support both userId and id fields)
+    const userId = decoded.userId || decoded.id;
+    
+    if (!userId) {
+      console.error('❌ Auth Middleware - No userId found in token');
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid token. User ID not found.'
+      });
+    }
+    
     // Find user
-    const user = await User.findByPk(decoded.userId);
+    const user = await User.findByPk(userId);
+    
+    console.log('👤 Auth Middleware - User found:', user ? { id: user.id, name: user.name } : 'NOT FOUND');
 
     if (!user) {
       return res.status(401).json({

@@ -1,17 +1,21 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { CheckCircle, ChevronLeft, ChevronRight, Eye, ShieldCheck, Heart, Play, MessageCircle, X, Send } from "lucide-react";
+import { CheckCircle, ChevronLeft, ChevronRight, Eye, ShieldCheck, Heart, Play, X, Send } from "lucide-react";
 import ResponsiveHeader from "../../Components/ResponsiveHeader";
 import Footer from "../../Components/Footer";
 import { useAuth } from "../../context/AuthContext";
+import { useApi } from "../../context";
+import LoginForm from "../Auth/Login";
 
 export default function IndividualProfilePage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user, isAuthenticated, token } = useAuth();
+  const { user, isAuthenticated } = useAuth();
+  const { proposalApi } = useApi();
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [profileUserId, setProfileUserId] = useState(null); // Store actual user ID
 
   // Proposal state
   const [showProposalModal, setShowProposalModal] = useState(false);
@@ -19,6 +23,12 @@ export default function IndividualProfilePage() {
   const [proposalLoading, setProposalLoading] = useState(false);
   const [proposalError, setProposalError] = useState(null);
   const [proposalSent, setProposalSent] = useState(false);
+  const [checkingProposal, setCheckingProposal] = useState(false);
+  const [existingProposalId, setExistingProposalId] = useState(null);
+  
+  // Login modal state
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
   // Static profile data as fallback
   const staticProfiles = {
@@ -171,6 +181,18 @@ export default function IndividualProfilePage() {
         const data = await response.json();
         if (data.success) {
           setProfile(data.data);
+          
+          // Extract user ID from profile ID (e.g., "B00008-M" -> need to fetch user_id)
+          // The API should return userId, but if not, we'll extract from profile ID
+          if (data.data.userId) {
+            setProfileUserId(data.data.userId);
+            console.log('✅ Profile user ID:', data.data.userId);
+          } else if (typeof id === 'string' && /^[BG]\d+-[MF]$/.test(id)) {
+            // If API doesn't provide userId, we need to fetch it
+            console.log('⚠️ API response missing userId, profile ID:', id);
+            // For now, store the profile ID and we'll handle comparison differently
+            setProfileUserId(id);
+          }
           return;
         }
       }
@@ -195,11 +217,85 @@ export default function IndividualProfilePage() {
     }
   };
 
+  // Check if proposal already sent to this profile
+  const checkExistingProposal = async () => {
+    if (!isAuthenticated || !profileUserId || id in staticProfiles) return;
+    
+    try {
+      setCheckingProposal(true);
+      console.log('🔍 Checking existing proposals for user ID:', profileUserId);
+      console.log('🔑 Current authenticated user:', user?.id);
+      
+      const result = await proposalApi.getSentProposals();
+      
+      console.log('📡 API Result:', result);
+      console.log('📡 API Success:', result.success);
+      console.log('📡 API Data:', result.data);
+      
+      if (result.success && result.data?.proposals) {
+        console.log('📋 All sent proposals:', result.data.proposals.length);
+        console.log('📋 Proposals list:', result.data.proposals);
+        
+        // Check if any sent proposal matches this user
+        // Compare with profileUserId if it's a user ID, or with profile ID
+        const existingProposal = result.data.proposals.find(p => {
+          const proposedId = p.proposedUser?.id;
+          console.log('🔎 Comparing proposal:', {
+            proposalId: p.id,
+            proposedUserId: proposedId,
+            lookingForUserId: profileUserId,
+            lookingForProfileId: id,
+            status: p.status
+          });
+          
+          const matches = proposedId === profileUserId || proposedId === id;
+          
+          if (matches) {
+            console.log('🎯 Match found:', {
+              proposalId: p.id,
+              proposedUserId: proposedId,
+              profileUserId,
+              status: p.status
+            });
+          }
+          
+          return matches && ['pending', 'accepted'].includes(p.status);
+        });
+        
+        if (existingProposal) {
+          console.log('✅ Found existing proposal:', existingProposal);
+          setProposalSent(true);
+          setExistingProposalId(existingProposal.id);
+        } else {
+          console.log('ℹ️ No existing proposal found for this profile');
+          setProposalSent(false);
+        }
+      } else {
+        console.warn('⚠️ API call failed or returned no data:', result);
+        setProposalSent(false);
+      }
+    } catch (error) {
+      console.error('❌ Error checking existing proposal:', error);
+      setProposalSent(false);
+    } finally {
+      setCheckingProposal(false);
+    }
+  };
+
   useEffect(() => {
     if (id) {
       fetchProfile();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
+
+  // Check proposals after profile is loaded and we have the user ID
+  useEffect(() => {
+    if (profileUserId && isAuthenticated) {
+      checkExistingProposal();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profileUserId, isAuthenticated]);
 
   const [idx, setIdx] = useState(0);
   const prev = () => setIdx((i) => (i - 1 + profile?.images?.length) % (profile?.images?.length || 1));
@@ -207,15 +303,16 @@ export default function IndividualProfilePage() {
 
   // Proposal functions
   const handlePropose = () => {
-    // Check if this is a demo profile
-    const isDemoProfile = /^(DEMO_|[A-Z]\d{5}-[A-Z]$)/.test(id);
+    // Check if this is a static/demo profile (from staticProfiles object)
+    const isDemoProfile = id in staticProfiles;
+    
     if (isDemoProfile) {
       alert('This is a demo profile. Please register to view real profiles and send proposals.');
       return;
     }
 
     if (!isAuthenticated) {
-      navigate('/auth/login');
+      setShowLoginModal(true);
       return;
     }
 
@@ -228,61 +325,52 @@ export default function IndividualProfilePage() {
     setProposalError(null);
   };
 
+  // Handle successful login from modal
+  const handleLoginSuccess = () => {
+    setShowLoginModal(false);
+    // Re-check authentication and proposal status
+    checkExistingProposal();
+  };
+
   const sendProposal = async () => {
     try {
       setProposalLoading(true);
       setProposalError(null);
 
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-
-      console.log('🔄 Sending proposal...', {
-        url: `${API_URL}/v1/proposals/send`,
+      console.log('🔄 Profile: Sending proposal via API context', {
         proposedUserId: id,
-        message: proposalMessage.trim(),
-        token: token ? 'Present' : 'Missing'
+        message: proposalMessage ? 'Present' : 'Empty'
       });
 
-      const response = await fetch(`${API_URL}/v1/proposals/send`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          proposedUserId: id,
-          message: proposalMessage.trim()
-        })
-      });
+      // Use API context method
+      const result = await proposalApi.sendProposal(id, proposalMessage.trim());
 
-      console.log('📡 Response status:', response.status);
-      console.log('📡 Response headers:', response.headers);
+      console.log('📡 Profile: API response received:', result);
 
-      let result;
-      try {
-        result = await response.json();
-        console.log('📡 Response data:', result);
-      } catch (parseError) {
-        console.error('❌ Failed to parse response as JSON:', parseError);
-        const textResponse = await response.text();
-        console.log('📡 Raw response:', textResponse);
-        throw new Error('Invalid response format from server');
-      }
-
-      if (response.ok && result.success) {
-        console.log('✅ Proposal sent successfully');
+      if (result.success) {
+        console.log('✅ Profile: Proposal sent successfully');
         setProposalSent(true);
         setShowProposalModal(false);
         setProposalMessage("");
-        alert('Proposal sent successfully!');
+        setProposalError(null);
+        
+        // Show success message
+        const successMsg = result.message || 'Proposal sent successfully!';
+        alert(successMsg);
       } else {
-        console.error('❌ Proposal failed:', result);
-        setProposalError(result.message || `Failed to send proposal (${response.status})`);
+        console.error('❌ Profile: Proposal failed:', result.error);
+        const errorMsg = result.error || 'Failed to send proposal. Please try again.';
+        setProposalError(errorMsg);
+        
+        // Don't close modal so user can see error and retry
       }
     } catch (error) {
-      console.error('❌ Error sending proposal:', error);
-      setProposalError(`Network error: ${error.message}`);
+      console.error('❌ Profile: Exception sending proposal:', error);
+      const errorMsg = error.message || 'Network error. Please check your connection and try again.';
+      setProposalError(errorMsg);
     } finally {
       setProposalLoading(false);
+      console.log('🏁 Profile: Proposal send attempt completed');
     }
   };
 
@@ -474,28 +562,49 @@ export default function IndividualProfilePage() {
 
                 <div className="space-y-3">
                   {(() => {
-                    const isDemoProfile = /^(DEMO_|[A-Z]\d{5}-[A-Z]$)/.test(id);
+                    // Check if this is a static/demo profile
+                    const isDemoProfile = id in staticProfiles;
+                    const isSelf = user?.id === id;
+                    const isLoading = checkingProposal;
+                    
+                    // console.log('🔍 Button render check:', { 
+                    //   id, 
+                    //   isDemoProfile, 
+                    //   isSelf, 
+                    //   userId: user?.id, 
+                    //   proposalSent, 
+                    //   isLoading,
+                    //   existingProposalId 
+                    // });
+                    
                     return (
                       <button
                         onClick={handlePropose}
-                        disabled={proposalSent || isDemoProfile}
+                        disabled={proposalSent || isDemoProfile || isSelf || isLoading}
                         className={`w-full inline-flex items-center justify-center gap-2 rounded-lg px-4 py-3 font-semibold shadow transition-colors ${
-                          isDemoProfile
+                          isDemoProfile || isSelf
                             ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
                             : proposalSent
                             ? 'bg-green-600 hover:bg-green-700 text-white'
-                            : 'bg-indigo-600 hover:bg-indigo-700 text-white'
+                            : isLoading
+                            ? 'bg-gray-400 text-gray-200 cursor-wait'
+                            : 'bg-rose-600 hover:bg-rose-700 text-white'
                         }`}
                       >
-                        <MessageCircle className="h-5 w-5" />
-                        {isDemoProfile ? 'Demo Profile' : proposalSent ? 'Proposal Sent' : 'Propose Now'}
+                        {isLoading ? (
+                          <>
+                            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                            Checking...
+                          </>
+                        ) : (
+                          <>
+                            <Heart className="h-5 w-5" />
+                            {isDemoProfile ? 'Demo Profile' : isSelf ? 'Your Profile' : proposalSent ? 'Proposal Sent ✓' : 'Send Proposal'}
+                          </>
+                        )}
                       </button>
                     );
                   })()}
-                  <button className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-3 font-semibold text-white shadow hover:bg-indigo-700">
-                    <ShieldCheck className="h-5 w-5" />
-                    Request YTM
-                  </button>
                   <button className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-3 font-semibold text-white shadow hover:bg-indigo-700">
                     <Play className="h-5 w-5" />
                     Video Profile
@@ -582,6 +691,13 @@ export default function IndividualProfilePage() {
           </div>
         </div>
       )}
+
+      {/* Login Modal */}
+      <LoginForm 
+        isOpen={showLoginModal} 
+        onClose={() => setShowLoginModal(false)} 
+        onLoginSuccess={handleLoginSuccess}
+      />
 
       <Footer />
     </div>

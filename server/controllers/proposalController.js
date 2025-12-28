@@ -6,13 +6,19 @@ const { Op } = require('sequelize');
 class ProposalController {
   // Send proposal
   async sendProposal(req, res, next) {
+    console.log('🎯 sendProposal function CALLED');
+    console.log('📦 Request body:', req.body);
+    console.log('👤 Request user:', req.user ? { id: req.user.id, name: req.user.name } : 'NO USER');
+    
     try {
       const { proposedUserId, message } = req.body;
       const proposerUserId = req.user.id;
 
       console.log('🔄 Processing proposal request:', {
         proposerUserId,
+        proposerUserIdType: typeof proposerUserId,
         proposedUserId,
+        proposedUserIdType: typeof proposedUserId,
         message: message ? message.substring(0, 50) + '...' : 'No message',
         timestamp: new Date().toISOString()
       });
@@ -22,38 +28,66 @@ class ProposalController {
         throw new ValidationError('Proposed user ID is required');
       }
 
-      // Check if proposing to self
-      if (proposerUserId === proposedUserId) {
+      // Parse profile ID if it's in format "B00002-F" or "G00003-M"
+      let actualProposedUserId = proposedUserId;
+      
+      // Check if proposedUserId is a profile ID format (B00002-F, G00003-M, etc.)
+      if (typeof proposedUserId === 'string' && /^[BG]\d+-[MF]$/.test(proposedUserId)) {
+        console.log('🔍 Detected profile ID format, converting to user ID:', proposedUserId);
+        
+        // Extract the numeric profile ID from format like "B00002-F"
+        const match = proposedUserId.match(/^[BG](\d+)-[MF]$/);
+        if (!match) {
+          console.error('❌ Invalid profile ID format:', proposedUserId);
+          throw new ValidationError('Invalid profile ID format');
+        }
+        
+        const profileId = parseInt(match[1]);
+        console.log('🔍 Extracted profile ID:', profileId);
+        
+        // Find the profile and get associated user ID
+        const profile = await Profile.findOne({
+          where: { id: profileId },
+          attributes: ['id', 'user_id']
+        });
+        
+        if (!profile || !profile.user_id) {
+          console.error('❌ Profile or user not found for profile ID:', profileId);
+          throw new AppError('Profile not found', 404);
+        }
+        
+        actualProposedUserId = profile.user_id;
+        console.log('✅ Converted profile ID to user ID:', { profileId, userId: actualProposedUserId });
+      }
+
+      // Don't parse to int - user IDs might be strings like 'K258711F'
+      // actualProposedUserId stays as-is (string or number)
+
+      // Check if proposing to self (use loose equality since IDs might be string or number)
+      if (proposerUserId == actualProposedUserId) {
         console.error('❌ User trying to propose to themselves:', proposerUserId);
         throw new ValidationError('Cannot send proposal to yourself');
       }
 
-      // Check if this is a static profile ID (frontend demo profiles)
-      const staticProfilePattern = /^(DEMO_|[A-Z]\d{5}-[A-Z]$)/; // Matches "DEMO_B25102", "B00004-M" etc.
-      if (staticProfilePattern.test(proposedUserId)) {
-        console.warn('🚫 Attempt to propose to static demo profile:', proposedUserId);
-        throw new AppError('Cannot send proposals to demo profiles. Please create an account to view real profiles.', 400);
-      }
-
       // Check if proposed user exists and has active profile
-      console.log('🔍 Looking up proposed user:', proposedUserId);
+      console.log('🔍 Looking up proposed user:', actualProposedUserId);
       const proposedUser = await User.findOne({
-        where: { id: proposedUserId, is_active: true },
+        where: { id: actualProposedUserId, is_active: true },
         include: [{
           model: Profile,
-          where: { is_active: true },
-          required: false // Changed to false to allow users without profiles
+          as: 'userProfile',
+          required: false
         }]
       });
 
       console.log('👤 Proposed user lookup result:', proposedUser ? {
         id: proposedUser.id,
         name: proposedUser.name,
-        hasProfile: !!proposedUser.Profile
+        hasProfile: !!proposedUser.userProfile
       } : 'NOT FOUND');
 
       if (!proposedUser) {
-        console.error('❌ Proposed user not found or inactive:', proposedUserId);
+        console.error('❌ Proposed user not found or inactive:', actualProposedUserId);
         throw new AppError('User not found or profile not active', 404);
       }
 
@@ -61,7 +95,7 @@ class ProposalController {
       const existingProposal = await Proposal.findOne({
         where: {
           proposerUserId,
-          proposedUserId,
+          proposedUserId: actualProposedUserId,
           status: ['pending', 'accepted']
         }
       });
@@ -73,7 +107,7 @@ class ProposalController {
       // Check if user has received proposal from this user
       const receivedProposal = await Proposal.findOne({
         where: {
-          proposerUserId: proposedUserId,
+          proposerUserId: actualProposedUserId,
           proposedUserId: proposerUserId,
           status: ['pending', 'accepted']
         }
@@ -86,10 +120,17 @@ class ProposalController {
       // Create proposal
       const proposal = await Proposal.create({
         proposerUserId,
-        proposedUserId,
+        proposedUserId: actualProposedUserId,
         message: message || '',
         status: 'pending',
         expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days
+      });
+
+      console.log('✅ Proposal created successfully:', {
+        id: proposal.id,
+        proposerUserId,
+        proposedUserId: actualProposedUserId,
+        status: proposal.status
       });
 
       // Log activity (temporarily disabled - UserActivity model not available)
@@ -126,6 +167,7 @@ class ProposalController {
         stack: error.stack,
         proposerUserId: req.user?.id,
         proposedUserId: req.body?.proposedUserId,
+        proposedUserIdType: typeof req.body?.proposedUserId,
         timestamp: new Date().toISOString()
       });
       next(error);
@@ -152,7 +194,8 @@ class ProposalController {
           attributes: ['id', 'name', 'gender'],
           include: [{
             model: Profile,
-            attributes: ['photos', 'age', 'city', 'state', 'occupation', 'maritalStatus']
+            as: 'userProfile',
+            attributes: ['photos', 'profile_photo', 'personal_info', 'location_info', 'education_career_info']
           }]
         }],
         order: [['createdAt', 'DESC']],
@@ -160,29 +203,32 @@ class ProposalController {
         offset: parseInt(offset)
       });
 
-      const formattedProposals = proposals.map(proposal => ({
-        id: proposal.id,
-        status: proposal.status,
-        message: proposal.message,
-        responseMessage: proposal.responseMessage,
-        contactRevealed: proposal.contactRevealed,
-        expiresAt: proposal.expiresAt,
-        createdAt: proposal.createdAt,
-        respondedAt: proposal.respondedAt,
-        proposedUser: {
-          id: proposal.ProposedUser.id,
-          name: proposal.ProposedUser.name,
-          gender: proposal.ProposedUser.gender,
-          age: proposal.ProposedUser.Profile?.age,
-          location: {
-            city: proposal.ProposedUser.Profile?.city,
-            state: proposal.ProposedUser.Profile?.state
-          },
-          photos: proposal.ProposedUser.Profile?.photos?.slice(0, 1) || [],
-          occupation: proposal.ProposedUser.Profile?.occupation,
-          maritalStatus: proposal.ProposedUser.Profile?.maritalStatus
-        }
-      }));
+      const formattedProposals = proposals.map(proposal => {
+        const profile = proposal.ProposedUser.userProfile;
+        return {
+          id: proposal.id,
+          status: proposal.status,
+          message: proposal.message,
+          responseMessage: proposal.responseMessage,
+          contactRevealed: proposal.contactRevealed,
+          expiresAt: proposal.expiresAt,
+          createdAt: proposal.createdAt,
+          respondedAt: proposal.respondedAt,
+          proposedUser: {
+            id: proposal.ProposedUser.id,
+            name: proposal.ProposedUser.name,
+            gender: proposal.ProposedUser.gender,
+            age: profile?.personal_info?.age || null,
+            location: {
+              city: profile?.location_info?.city || '',
+              state: profile?.location_info?.state || ''
+            },
+            photos: profile?.photos?.slice(0, 1) || [],
+            occupation: profile?.education_career_info?.occupation || '',
+            maritalStatus: profile?.personal_info?.marital_status || ''
+          }
+        };
+      });
 
       res.json({
         success: true,
@@ -223,7 +269,8 @@ class ProposalController {
           attributes: ['id', 'name', 'gender'],
           include: [{
             model: Profile,
-            attributes: ['photos', 'age', 'city', 'state', 'occupation', 'maritalStatus', 'education', 'familyType']
+            as: 'userProfile',
+            attributes: ['photos', 'profile_photo', 'personal_info', 'location_info', 'education_career_info', 'family_info']
           }]
         }],
         order: [['createdAt', 'DESC']],
@@ -231,29 +278,32 @@ class ProposalController {
         offset: parseInt(offset)
       });
 
-      const formattedProposals = proposals.map(proposal => ({
-        id: proposal.id,
-        status: proposal.status,
-        message: proposal.message,
-        contactRevealed: proposal.contactRevealed,
-        expiresAt: proposal.expiresAt,
-        createdAt: proposal.createdAt,
-        proposerUser: {
-          id: proposal.ProposerUser.id,
-          name: proposal.ProposerUser.name,
-          gender: proposal.ProposerUser.gender,
-          age: proposal.ProposerUser.Profile?.age,
-          location: {
-            city: proposal.ProposerUser.Profile?.city,
-            state: proposal.ProposerUser.Profile?.state
-          },
-          photos: proposal.ProposerUser.Profile?.photos?.slice(0, 3) || [],
-          occupation: proposal.ProposerUser.Profile?.occupation,
-          maritalStatus: proposal.ProposerUser.Profile?.maritalStatus,
-          education: proposal.ProposerUser.Profile?.education,
-          familyType: proposal.ProposerUser.Profile?.familyType
-        }
-      }));
+      const formattedProposals = proposals.map(proposal => {
+        const profile = proposal.ProposerUser.userProfile;
+        return {
+          id: proposal.id,
+          status: proposal.status,
+          message: proposal.message,
+          contactRevealed: proposal.contactRevealed,
+          expiresAt: proposal.expiresAt,
+          createdAt: proposal.createdAt,
+          proposerUser: {
+            id: proposal.ProposerUser.id,
+            name: proposal.ProposerUser.name,
+            gender: proposal.ProposerUser.gender,
+            age: profile?.personal_info?.age || null,
+            location: {
+              city: profile?.location_info?.city || '',
+              state: profile?.location_info?.state || ''
+            },
+            photos: profile?.photos?.slice(0, 3) || [],
+            occupation: profile?.education_career_info?.occupation || '',
+            maritalStatus: profile?.personal_info?.marital_status || '',
+            education: profile?.education_career_info?.education || '',
+            familyType: profile?.family_info?.type || ''
+          }
+        };
+      });
 
       res.json({
         success: true,
@@ -295,7 +345,7 @@ class ProposalController {
         include: [{
           model: User,
           as: 'ProposerUser',
-          attributes: ['id', 'name', 'email', 'phone']
+          attributes: ['id', 'name', 'email', 'phone_number']
         }]
       });
 
@@ -322,7 +372,7 @@ class ProposalController {
         contactInfo = {
           name: proposal.ProposerUser.name,
           email: proposal.ProposerUser.email,
-          phone: proposal.ProposerUser.phone
+          phone: proposal.ProposerUser.phone_number
         };
       }
 
@@ -379,7 +429,7 @@ class ProposalController {
           {
             model: User,
             as: 'ProposerUser',
-            attributes: ['id', 'name', 'gender', 'email', 'phone'],
+            attributes: ['id', 'name', 'gender', 'email', 'phone_number'],
             include: [{
               model: Profile,
               attributes: ['photos', 'age', 'city', 'state', 'occupation', 'maritalStatus', 'education', 'familyType', 'aboutMe']
@@ -388,7 +438,7 @@ class ProposalController {
           {
             model: User,
             as: 'ProposedUser',
-            attributes: ['id', 'name', 'gender', 'email', 'phone'],
+            attributes: ['id', 'name', 'gender', 'email', 'phone_number'],
             include: [{
               model: Profile,
               attributes: ['photos', 'age', 'city', 'state', 'occupation', 'maritalStatus', 'education', 'familyType', 'aboutMe']
@@ -435,7 +485,7 @@ class ProposalController {
           aboutMe: otherUser.Profile?.aboutMe,
           contact: showContact ? {
             email: otherUser.email,
-            phone: otherUser.phone
+            phone: otherUser.phone_number
           } : null
         }
       };
@@ -608,6 +658,150 @@ class ProposalController {
       });
 
     } catch (error) {
+      next(error);
+    }
+  }
+
+  // Get all proposals (Admin only)
+  async getAllProposalsForAdmin(req, res, next) {
+    try {
+      const { 
+        status, 
+        page = 1, 
+        limit = 50,
+        sortBy = 'createdAt',
+        sortOrder = 'DESC',
+        search = ''
+      } = req.query;
+      
+      const offset = (page - 1) * limit;
+
+      // Build where clause
+      const whereClause = {};
+      if (status && status !== 'all') {
+        whereClause.status = status;
+      }
+
+      // Build search condition for user names
+      const userSearchCondition = search ? {
+        [Op.or]: [
+          { '$ProposerUser.name$': { [Op.like]: `%${search}%` } },
+          { '$ProposedUser.name$': { [Op.like]: `%${search}%` } }
+        ]
+      } : {};
+
+      const { count, rows: proposals } = await Proposal.findAndCountAll({
+        where: {
+          ...whereClause,
+          ...userSearchCondition
+        },
+        include: [
+          {
+            model: User,
+            as: 'ProposerUser',
+            attributes: ['id', 'name', 'email', 'phone_number', 'gender', 'is_verified'],
+            include: [{
+              model: Profile,
+              as: 'userProfile',
+              attributes: ['photos', 'profile_photo', 'personal_info', 'location_info', 'education_career_info']
+            }]
+          },
+          {
+            model: User,
+            as: 'ProposedUser',
+            attributes: ['id', 'name', 'email', 'phone_number', 'gender', 'is_verified'],
+            include: [{
+              model: Profile,
+              as: 'userProfile',
+              attributes: ['photos', 'profile_photo', 'personal_info', 'location_info', 'education_career_info']
+            }]
+          }
+        ],
+        order: [[sortBy, sortOrder]],
+        limit: parseInt(limit),
+        offset: parseInt(offset)
+      });
+
+      const formattedProposals = proposals.map(proposal => {
+        const proposerProfile = proposal.ProposerUser?.userProfile;
+        const proposedProfile = proposal.ProposedUser?.userProfile;
+
+        return {
+          id: proposal.id,
+          status: proposal.status,
+          message: proposal.message,
+          responseMessage: proposal.responseMessage,
+          contactRevealed: proposal.contactRevealed,
+          expiresAt: proposal.expiresAt,
+          createdAt: proposal.createdAt,
+          respondedAt: proposal.respondedAt,
+          isExpired: proposal.isExpired(),
+          proposerUser: {
+            id: proposal.ProposerUser.id,
+            name: proposal.ProposerUser.name,
+            email: proposal.ProposerUser.email,
+            phone: proposal.ProposerUser.phone_number,
+            gender: proposal.ProposerUser.gender,
+            isVerified: proposal.ProposerUser.is_verified,
+            age: proposerProfile?.personal_info?.age || null,
+            location: {
+              city: proposerProfile?.location_info?.city || '',
+              state: proposerProfile?.location_info?.state || ''
+            },
+            photos: proposerProfile?.photos?.slice(0, 1) || [],
+            occupation: proposerProfile?.education_career_info?.occupation || ''
+          },
+          proposedUser: {
+            id: proposal.ProposedUser.id,
+            name: proposal.ProposedUser.name,
+            email: proposal.ProposedUser.email,
+            phone: proposal.ProposedUser.phone_number,
+            gender: proposal.ProposedUser.gender,
+            isVerified: proposal.ProposedUser.is_verified,
+            age: proposedProfile?.personal_info?.age || null,
+            location: {
+              city: proposedProfile?.location_info?.city || '',
+              state: proposedProfile?.location_info?.state || ''
+            },
+            photos: proposedProfile?.photos?.slice(0, 1) || [],
+            occupation: proposedProfile?.education_career_info?.occupation || ''
+          }
+        };
+      });
+
+      // Get status counts for admin dashboard
+      const statusCounts = await Promise.all([
+        Proposal.count({ where: { status: 'pending' } }),
+        Proposal.count({ where: { status: 'accepted' } }),
+        Proposal.count({ where: { status: 'rejected' } }),
+        Proposal.count({ where: { status: 'withdrawn' } }),
+        Proposal.count({ where: { status: 'maybe' } })
+      ]);
+
+      res.json({
+        success: true,
+        data: {
+          proposals: formattedProposals,
+          pagination: {
+            currentPage: parseInt(page),
+            totalPages: Math.ceil(count / limit),
+            totalCount: count,
+            hasNext: page * limit < count,
+            hasPrev: page > 1
+          },
+          statistics: {
+            pending: statusCounts[0],
+            accepted: statusCounts[1],
+            rejected: statusCounts[2],
+            withdrawn: statusCounts[3],
+            maybe: statusCounts[4],
+            total: count
+          }
+        }
+      });
+
+    } catch (error) {
+      logger.error('Error in getAllProposalsForAdmin:', error);
       next(error);
     }
   }

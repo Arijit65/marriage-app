@@ -370,8 +370,8 @@ const ProfilesPage = () => {
                   </span>
                   {profiles.length > 0 && (
                     <span className="text-sm text-gray-500">
-                      {profiles.length > staticProfiles.length ? 'Live + Static' : 'Static profiles'}
-                      {isAuthenticated && ' (excluding your profile)'}
+                      {profiles.length > staticProfiles.length ? '' : 'Static profiles'}
+                      {isAuthenticated && ''}
                     </span>
                   )}
                 </div>
