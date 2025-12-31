@@ -6,6 +6,7 @@ import {
   UserCheck, Settings, Bell, Camera, Filter, ChevronDown, ChevronUp,
   ContactRound
 } from 'lucide-react';
+import { logo } from '../assets/assets';
 
 const MarriagePaperWebsite = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -108,7 +109,7 @@ const MarriagePaperWebsite = () => {
               >
                 {/* Main Logo Image */}
                 <motion.img
-                  src="/src/assets/logo.png"
+                  src={logo}
                   alt="Marriage Paper Logo"
                   className="h-12 w-auto"
                   whileHover={{

@@ -1,4 +1,5 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import { useAuth } from "../context";
 // import any icons/components from your UI library if desired
 
@@ -196,6 +197,7 @@ const FormField = ({ label, children, className = "" }) => (
 );
 
 export default function PostAdForm({ referCode }) {
+  const location = useLocation();
   const { loading, error, clearErrors } = useAuth();
   const [_otpSent, setOtpSent] = useState(false);
   const [agree, setAgree] = useState(false);
@@ -225,6 +227,19 @@ export default function PostAdForm({ referCode }) {
     alternatePhone: '',
     photosFiles: []
   });
+
+  // Pre-fill form data from hero section
+  useEffect(() => {
+    if (location.state?.prefilledData) {
+      const { gender, phone, religion } = location.state.prefilledData;
+      setFormData(prev => ({
+        ...prev,
+        ...(gender && { gender }),
+        ...(phone && { phone }),
+        ...(religion && { religion })
+      }));
+    }
+  }, [location.state]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;

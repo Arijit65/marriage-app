@@ -1,11 +1,22 @@
 // AdsSection.jsx  –– refined continuous layout with dynamic data
 
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { useApi } from "../context/ApiContext";
 
 /* ─── Card component ─── */
-const DemoCard = ({ profileId = "F2150-F", memberType = "STOCK Member", gender = "Bride", age = "32", height = "5'", religion = "Hindu", ethnicity = "Bengali", caste = "Kayastha", education = "MA", photoCount = "2 Photos", imageUrl, name, details, qualification, profession }) => (
-  <div className="bg-white rounded-2xl border border-gray-200 shadow-xl flex overflow-hidden">
+const DemoCard = ({ profileId = "F2150-F", memberType = "STOCK Member", gender = "Bride", age = "32", height = "5'", religion = "Hindu", ethnicity = "Bengali", caste = "Kayastha", education = "MA", photoCount = "2 Photos", imageUrl, details, qualification, profession }) => {
+  const navigate = useNavigate();
+  
+  const handleCardClick = () => {
+    // Navigate to profile detail page using profileId
+    navigate(`/profile/${profileId}`);
+  };
+  
+  return (
+  <div 
+    onClick={handleCardClick}
+    className="bg-white rounded-2xl border border-gray-200 shadow-xl flex overflow-hidden cursor-pointer hover:shadow-2xl hover:scale-[1.02] transition-all duration-300">
     {/* photo */}
     <div className="w-[150px] shrink-0 relative">
       <img
@@ -50,10 +61,11 @@ const DemoCard = ({ profileId = "F2150-F", memberType = "STOCK Member", gender =
       </div>
     </div>
   </div>
-);
+  );
+};
 
 /* ─── Section block ─── */
-const Block = ({ label, headline, children, isLast }) => (
+const Block = ({ label, headline, children, isLast, onViewAll }) => (
   <>
     {/* heading group */}
     <header className="text-center pt-16">
@@ -68,7 +80,10 @@ const Block = ({ label, headline, children, isLast }) => (
 
     {/* button */}
     <div className="text-center pb-16">
-      <button className="bg-red-600 hover:bg-red-700 text-white px-10 py-3 rounded-full text-lg font-semibold shadow-lg ring-0 hover:ring-4 hover:ring-red-600/30 transition">
+      <button 
+        onClick={onViewAll}
+        className="bg-red-600 hover:bg-red-700 text-white px-10 py-3 rounded-full text-lg font-semibold shadow-lg ring-0 hover:ring-4 hover:ring-red-600/30 transition"
+      >
         View All
       </button>
     </div>
@@ -91,10 +106,15 @@ const PLACEHOLDER_IMAGES = [
 ];
 
 const AdsSection = () => {
+  const navigate = useNavigate();
   const [latestAds, setLatestAds] = useState([]);
   const [featuredAds, setFeaturedAds] = useState([]);
   const [loading, setLoading] = useState(true);
   const { profileApi } = useApi();
+
+  const handleViewAll = () => {
+    navigate('/profiles');
+  };
 
   // Fallback data functions - moved inside useEffect to avoid dependencies
   useEffect(() => {
@@ -231,6 +251,7 @@ const AdsSection = () => {
         <Block
           label="Latest Ads"
           headline="Find Your Perfect Match Today"
+          onViewAll={handleViewAll}
         >
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
             {latestAds.map((profile, index) => (
@@ -254,6 +275,7 @@ const AdsSection = () => {
           label="Featured Ads"
           headline="Discover Your Perfect Match"
           isLast
+          onViewAll={handleViewAll}
         >
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6 max-w-6xl mx-auto">
             {featuredAds.map((profile, index) => (

@@ -1,6 +1,7 @@
 /*  ProfilesPage.jsx - Static cards with proper scrolling  */
 
 import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import ProfileFilters from '../Components/ProfileFilters';
 import ProfileCard from '../Components/ProfileCard';
 import { Search, Filter, Grid, List } from 'lucide-react';
@@ -10,13 +11,16 @@ import { useAuth } from '../context';
 
 const ProfilesPage = () => {
   const { user, isAuthenticated, token } = useAuth(); // Get current user info
+  const location = useLocation();
   
   const [profiles, setProfiles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [filters, setFilters] = useState({});
   const [viewMode, setViewMode] = useState('list');
-  const [showFilters, setShowFilters] = useState(true);
+  const [showFilters, setShowFilters] = useState(false);
+  const [currentUserProfileId, setCurrentUserProfileId] = useState(null); // Store current user's profile ID
+  const [heroFiltersApplied, setHeroFiltersApplied] = useState(false);
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
 
   // Static profile data as fallback
@@ -201,29 +205,23 @@ const ProfilesPage = () => {
 
   // Helper function to filter out current user's profile
   const filterOutCurrentUser = (profilesList) => {
-    // Check if user is authenticated (now properly working)
-    if (!isAuthenticated || !user) {
-      console.log('User not authenticated, showing all profiles');
+    // Check if user is authenticated and has a profile ID
+    if (!isAuthenticated || !user || !currentUserProfileId) {
+      console.log('User not authenticated or profile ID not loaded, showing all profiles');
       return profilesList;
     }
     
-    console.log('🔍 Filtering profiles for authenticated user:', user.id);
+    console.log('🔍 Filtering profiles for authenticated user with profile ID:', currentUserProfileId);
     
-    // Filter out the current user's profile
+    // Filter out the current user's profile by comparing profile IDs
     const filteredProfiles = profilesList.filter(profile => {
-      // Check various possible ID field matches
-      const isCurrentUserProfile = (
-        profile.id === user.id || 
-        profile.user_id === user.id || 
-        profile.userId === user.id ||
-        profile.profileId === user.id ||
-        (user.phone && (profile.phone === user.phone || profile.phone_number === user.phone || profile.mobile === user.phone)) ||
-        (user.email && profile.email === user.email)
-      );
+      // Compare profile IDs (the main fix)
+      const profileIdToCheck = profile.id || profile.profileId;
+      const isCurrentUserProfile = profileIdToCheck === currentUserProfileId;
       
       if (isCurrentUserProfile) {
         console.log('🚫 Excluding current user profile:', {
-          profileId: profile.id || profile.profileId || profile.user_id,
+          profileId: profileIdToCheck,
           profileName: profile.name
         });
         return false;
@@ -234,6 +232,38 @@ const ProfilesPage = () => {
     
     console.log(`✅ Filtered ${profilesList.length - filteredProfiles.length} profile(s). Showing ${filteredProfiles.length} profiles.`);
     return filteredProfiles;
+  };
+
+  // Fetch current user's profile to get their profile ID
+  const fetchCurrentUserProfile = async () => {
+    if (!isAuthenticated || !token || !user) {
+      console.log('User not authenticated, skipping profile fetch');
+      return;
+    }
+
+    try {
+      const authToken = token || localStorage.getItem('token');
+      const response = await fetch(`${API_URL}/profile`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.data.profile) {
+          const profileId = data.data.profile.id;
+          setCurrentUserProfileId(profileId);
+          console.log('✅ Current user profile ID fetched:', profileId);
+        }
+      } else {
+        console.warn('Failed to fetch current user profile');
+      }
+    } catch (error) {
+      console.error('Error fetching current user profile:', error);
+    }
   };
 
   // Fetch profiles from API
@@ -303,17 +333,59 @@ const ProfilesPage = () => {
 
   // Fetch profiles on component mount
   useEffect(() => {
-    fetchProfiles();
-  }, []);
+    // Check if coming from hero search with filters
+    const appliedFilters = location.state?.appliedFilters;
+    const heroSearchFilters = localStorage.getItem('heroSearchFilters');
+    
+    if (appliedFilters && !heroFiltersApplied) {
+      // Apply filters from hero search
+      console.log('Applying hero search filters:', appliedFilters);
+      setFilters(appliedFilters);
+      setHeroFiltersApplied(true);
+      fetchProfiles(appliedFilters);
+      
+      // Clear the hero search filters from localStorage after applying
+      localStorage.removeItem('heroSearchFilters');
+      
+      // Show filters panel so user can see what was applied
+      setShowFilters(true);
+    } else if (heroSearchFilters && !heroFiltersApplied) {
+      // Apply filters from localStorage (backup)
+      try {
+        const parsedFilters = JSON.parse(heroSearchFilters);
+        console.log('Applying hero search filters from localStorage:', parsedFilters);
+        setFilters(parsedFilters);
+        setHeroFiltersApplied(true);
+        fetchProfiles(parsedFilters);
+        localStorage.removeItem('heroSearchFilters');
+        setShowFilters(true);
+      } catch (error) {
+        console.error('Error parsing hero search filters:', error);
+        fetchProfiles();
+      }
+    } else {
+      fetchProfiles();
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Re-filter profiles when user authentication state changes
+  // Fetch current user's profile ID when user logs in
   useEffect(() => {
-    if (profiles.length > 0 && isAuthenticated && user) {
-      // Re-apply filtering when user login/logout state changes
-      console.log('Authentication state changed, refetching profiles...');
+    if (isAuthenticated && user && token) {
+      fetchCurrentUserProfile();
+    } else {
+      // Clear profile ID when user logs out
+      setCurrentUserProfileId(null);
+    }
+  }, [isAuthenticated, user, token]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Re-filter profiles when user authentication state or profile ID changes
+  useEffect(() => {
+    if (profiles.length > 0 && isAuthenticated && user && currentUserProfileId) {
+      // Re-apply filtering when current user profile ID is loaded
+      console.log('Current user profile ID loaded, refetching profiles...');
       fetchProfiles(filters);
     }
-  }, [isAuthenticated, user?.id]);
+  }, [currentUserProfileId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Loading state
   if (loading) {
@@ -362,23 +434,23 @@ const ProfilesPage = () => {
       {/* Header */}
       <div className="bg-white border-b border-gray-200 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center space-x-4">
-                  <h1 className="text-2xl font-bold text-gray-800">Browse Profiles</h1>
-                  <span className="bg-red-100 text-red-800 px-3 py-1 rounded-full text-sm font-semibold">
-                    {profiles.length} matches
+          <div className="flex items-center justify-between gap-2 mb-4 md:mb-6">
+                <div className="flex items-center space-x-2 md:space-x-4 min-w-0 flex-1">
+                  <h1 className="text-lg md:text-2xl font-bold text-gray-800 truncate">Browse Profiles</h1>
+                  <span className="bg-red-100 text-red-800 px-2 md:px-3 py-1 rounded-full text-xs md:text-sm font-semibold whitespace-nowrap">
+                    {profiles.length}
                   </span>
                   {profiles.length > 0 && (
-                    <span className="text-sm text-gray-500">
+                    <span className="hidden md:inline text-sm text-gray-500">
                       {profiles.length > staticProfiles.length ? '' : 'Static profiles'}
                       {isAuthenticated && ''}
                     </span>
                   )}
                 </div>
                 
-                <div className="flex items-center space-x-4">
+                <div className="flex items-center space-x-2 md:space-x-4 flex-shrink-0">
                   {/* View Mode Toggle */}
-                  <div className="flex bg-gray-100 rounded-lg p-1">
+                  <div className="hidden md:flex bg-gray-100 rounded-lg p-1">
                     <button
                       onClick={() => setViewMode('grid')}
                       className={`p-2 rounded-md transition-colors ${
@@ -400,19 +472,19 @@ const ProfilesPage = () => {
                   {/* Refresh Button */}
                   <button
                     onClick={() => fetchProfiles(filters)}
-                    className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition-colors flex items-center space-x-2"
+                    className="bg-red-500 text-white px-2 md:px-4 py-2 rounded-lg hover:bg-red-600 transition-colors flex items-center space-x-1 md:space-x-2"
                   >
                     <span>🔄</span>
-                    <span>Refresh</span>
+                    <span className="hidden md:inline">Refresh</span>
                   </button>
 
                   {/* Filter Toggle */}
                   <button
                     onClick={() => setShowFilters(!showFilters)}
-                    className="flex items-center space-x-2 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors lg:hidden"
+                    className="flex items-center space-x-1 md:space-x-2 bg-red-600 text-white px-2 md:px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
                   >
                     <Filter className="w-4 h-4" />
-                    <span>Filters</span>
+                    <span className="hidden sm:inline">Filters</span>
                   </button>
                 </div>
               </div>
@@ -420,10 +492,45 @@ const ProfilesPage = () => {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 py-6">
-        <div className="flex gap-6">
-          {/* Left Sidebar - Filters */}
-          <div className={`${showFilters ? 'block' : 'hidden'} lg:block w-80 flex-shrink-0`}>
-            <ProfileFilters onFiltersChange={handleFilterChange} />
+        <div className="flex gap-6 relative">
+          {/* Mobile Filter Overlay - Shows as modal on mobile */}
+          {showFilters && (
+            <>
+              {/* Backdrop */}
+              <div 
+                className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
+                onClick={() => setShowFilters(false)}
+              />
+              
+              {/* Filter Sidebar - Mobile Slide-in Panel */}
+              <div className="fixed inset-y-0 left-0 w-80 bg-white z-50 overflow-y-auto lg:hidden shadow-2xl">
+                <div className="sticky top-0 bg-white border-b border-gray-200 px-4 py-4 flex items-center justify-between">
+                  <h2 className="text-lg font-semibold text-gray-800">Filters</h2>
+                  <button
+                    onClick={() => setShowFilters(false)}
+                    className="text-gray-500 hover:text-gray-700 p-2"
+                  >
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+                <div className="p-4">
+                  <ProfileFilters 
+                    onFiltersChange={handleFilterChange} 
+                    initialFilters={filters}
+                  />
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* Desktop Filter Sidebar - Always visible on large screens */}
+          <div className={`hidden lg:block w-80 flex-shrink-0 ${showFilters ? '' : 'lg:hidden'}`}>
+            <ProfileFilters 
+              onFiltersChange={handleFilterChange} 
+              initialFilters={filters}
+            />
           </div>
 
           {/* Right Content - Profiles */}

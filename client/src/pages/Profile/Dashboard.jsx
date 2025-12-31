@@ -6,7 +6,6 @@ import {
 } from "lucide-react";
 import { useAuth } from "../../context";
 import { useNavigate } from 'react-router-dom';
-import EditProfile from './EditProfile';
 import ProposalTracker from './ProposalTracker';
 
 const SidebarItem = ({ icon: Icon, label, active, onClick }) => (
@@ -15,7 +14,7 @@ const SidebarItem = ({ icon: Icon, label, active, onClick }) => (
     className={`w-full flex items-center gap-3 px-4 py-3 text-sm rounded-lg transition
       ${active ? "bg-emerald-700/20 text-white" : "text-slate-200 hover:bg-white/10"}`}
   >
-    <Icon className="h-4 w-4" />
+    {Icon && <Icon className="h-4 w-4" />}
     <span className="truncate">{label}</span>
   </button>
 );
@@ -25,6 +24,22 @@ export default function Dashboard() {
   const [currentView, setCurrentView] = useState('dashboard'); // 'dashboard', 'editProfile', 'myProfile', etc.
   const { user, isAuthenticated, loading, logout } = useAuth();
   const navigate = useNavigate();
+
+  // Redirect to home if not authenticated (after loading completes)
+  useEffect(() => {
+    if (!loading && !isAuthenticated) {
+      console.log('🚫 Not authenticated, redirecting to home');
+      navigate('/');
+    }
+  }, [loading, isAuthenticated, navigate]);
+
+  // Debug logs
+  useEffect(() => {
+    console.log('🔍 Dashboard - User data:', user);
+    console.log('🔍 Dashboard - User profile:', user?.userProfile);
+    console.log('🔍 Dashboard - isAuthenticated:', isAuthenticated);
+    console.log('🔍 Dashboard - loading:', loading);
+  }, [user, isAuthenticated, loading]);
 
   const handleLogout = () => {
     logout();
@@ -100,8 +115,6 @@ export default function Dashboard() {
   // Function to render the main content based on current view
   const renderMainContent = () => {
     switch (currentView) {
-      case 'editProfile':
-        return <EditProfile user={user} />;
       case 'additionalPhoto':
         return (
           <div className="text-center py-16">
@@ -185,7 +198,7 @@ export default function Dashboard() {
             {/* Actions */}
             <div className="flex flex-col gap-3">
               <button
-                onClick={() => setCurrentView('editProfile')}
+                onClick={() => navigate('/edit-profile')}
                 className="inline-flex items-center gap-2 bg-slate-900 text-white px-4 py-2 rounded-lg hover:bg-slate-800"
               >
                 <Pencil className="h-4 w-4" />
@@ -347,6 +360,7 @@ export default function Dashboard() {
     </>
   );
 
+  // Show loading spinner while auth is loading
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
@@ -358,33 +372,16 @@ export default function Dashboard() {
     );
   }
 
-  if (!isAuthenticated || !user) {
-    navigate('/login');
-    return null;
-  }
-
-  // Debug log to see what user data we have
-  console.log('🔍 Dashboard - User data:', user);
-  console.log('🔍 Dashboard - User profile:', user?.userProfile);
-  console.log('🔍 Dashboard - User keys:', user ? Object.keys(user) : 'No user');
-  console.log('🔍 Dashboard - isAuthenticated:', isAuthenticated);
-  console.log('🔍 Dashboard - loading:', loading);
-
-  // Debug image URL construction
-  if (user?.userProfile) {
-    const profilePhoto = user.userProfile.profile_photo;
-    const photos = user.userProfile.photos;
-    const baseUrl = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
-
-    console.log('🖼️ Profile photo field:', profilePhoto);
-    console.log('🖼️ Photos array:', photos);
-    console.log('🖼️ Base URL:', baseUrl);
-
-    if (profilePhoto) {
-      console.log('🖼️ Profile photo URL:', `${baseUrl}${profilePhoto}`);
-    } else if (photos && photos[0]) {
-      console.log('🖼️ First photo URL:', `${baseUrl}${photos[0]}`);
-    }
+  // Show loading while checking authentication
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto"></div>
+          <p className="mt-4 text-slate-600">Loading user data...</p>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -441,8 +438,8 @@ export default function Dashboard() {
               <SidebarItem
                 icon={Edit3}
                 label="Edit My Ad"
-                active={currentView === 'editProfile'}
-                onClick={() => setCurrentView('editProfile')}
+                active={false}
+                onClick={() => navigate('/edit-profile')}
               />
               <SidebarItem
                 icon={ImageIcon}

@@ -679,6 +679,18 @@ export const ApiProvider = ({ children }) => {
       } catch (error) {
         return { success: false, error: error.response?.data?.message || 'Failed to create admin', errors: error.response?.data?.errors };
       }
+    },
+
+    // Get user payment history
+    getUserPayments: async (userId, page = 1, limit = 10) => {
+      try {
+        const params = { page, limit };
+        const res = await adminApi.get(`/admin/users/${userId}/payments`, { params });
+        return { success: true, data: res.data.data };
+      } catch (error) {
+        console.error('Admin getUserPayments error:', error);
+        return { success: false, error: error.response?.data?.message || 'Failed to fetch user payments' };
+      }
     }
   };
 

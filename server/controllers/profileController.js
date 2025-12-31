@@ -1,5 +1,5 @@
 const { Profile, User, ProfileScore, UserActivity } = require('../models');
-const { Op } = require('sequelize');
+const { Op, Sequelize } = require('sequelize');
 const { AppError, ValidationError } = require('../middleware/errorHandler');
 const { logger } = require('../utils/logger');
 
@@ -11,10 +11,11 @@ class ProfileController {
       const currentUserId = req.user.id;
 
       const profile = await Profile.findOne({
-        where: { userId: userId || currentUserId },
+        where: { user_id: userId || currentUserId },
         include: [{
           model: User,
-          attributes: ['id', 'name', 'email', 'phone', 'gender', 'dateOfBirth', 'isPhoneVerified', 'isEmailVerified', 'planId']
+          as: 'user',
+          attributes: ['id', 'name', 'email', 'phone_number', 'gender', 'date_of_birth', 'is_verified', 'plan_id']
         }]
       });
 
@@ -23,9 +24,9 @@ class ProfileController {
       }
 
       // Check if profile is active and visible
-      if (!profile.isActive) {
-        throw new AppError('Profile is not active', 404);
-      }
+      // if (!profile.isActive) {
+      //   throw new AppError('Profile is not active', 404);
+      // }
 
       // If viewing own profile, return full data
       if (userId === currentUserId || !userId) {
@@ -542,17 +543,41 @@ class ProfileController {
   // Get advertisement profiles in specified format
   async getAdProfiles(req, res, next) {
     try {
-      const { page = 1, limit = 20, gender, ageMin, ageMax, location } = req.query;
+      const { 
+        page = 1, 
+        limit = 20, 
+        gender, 
+        ageMin, 
+        ageMax, 
+        location,
+        state,
+        city,
+        country,
+        religion,
+        caste,
+        community,
+        maritalStatus,
+        education,
+        occupation,
+        annualIncome,
+        diet,
+        complexion,
+        bodyType,
+        heightMin,
+        heightMax
+      } = req.query;
+      
       const offset = (page - 1) * limit;
 
       // Build where clause
       const whereClause = {};
       
+      // Gender filter (from User model)
       if (gender) {
         whereClause['$user.gender$'] = gender;
       }
 
-      // Age filter
+      // Age filter (calculated from date_of_birth in User model)
       if (ageMin || ageMax) {
         const currentDate = new Date();
         const minDate = ageMax ? new Date(currentDate.getFullYear() - ageMax, currentDate.getMonth(), currentDate.getDate()) : null;
@@ -573,12 +598,188 @@ class ProfileController {
         }
       }
 
-      // Location filter
-      if (location) {
+      // Location filters (from location_info in Profile model)
+      if (country) {
+        whereClause[Op.and] = whereClause[Op.and] || [];
+        whereClause[Op.and].push(
+          Sequelize.where(
+            Sequelize.literal("JSON_UNQUOTE(JSON_EXTRACT(location_info, '$.country'))"),
+            { [Op.like]: `%${country}%` }
+          )
+        );
+      }
+      if (state) {
+        whereClause[Op.and] = whereClause[Op.and] || [];
+        whereClause[Op.and].push(
+          Sequelize.where(
+            Sequelize.literal("JSON_UNQUOTE(JSON_EXTRACT(location_info, '$.state'))"),
+            { [Op.like]: `%${state}%` }
+          )
+        );
+      }
+      if (city) {
+        whereClause[Op.and] = whereClause[Op.and] || [];
+        whereClause[Op.and].push(
+          Sequelize.where(
+            Sequelize.literal("JSON_UNQUOTE(JSON_EXTRACT(location_info, '$.city'))"),
+            { [Op.like]: `%${city}%` }
+          )
+        );
+      }
+      // Legacy location parameter for backward compatibility
+      if (location && !city && !state) {
         whereClause[Op.or] = [
-          { '$location_info.city$': { [Op.like]: `%${location}%` } },
-          { '$location_info.state$': { [Op.like]: `%${location}%` } }
+          Sequelize.where(
+            Sequelize.literal("JSON_UNQUOTE(JSON_EXTRACT(location_info, '$.city'))"),
+            { [Op.like]: `%${location}%` }
+          ),
+          Sequelize.where(
+            Sequelize.literal("JSON_UNQUOTE(JSON_EXTRACT(location_info, '$.state'))"),
+            { [Op.like]: `%${location}%` }
+          )
         ];
+      }
+
+      // Religion filters (from religious_info in Profile model)
+      if (religion) {
+        const religions = Array.isArray(religion) ? religion : [religion];
+        whereClause[Op.and] = whereClause[Op.and] || [];
+        whereClause[Op.and].push(
+          Sequelize.where(
+            Sequelize.literal("JSON_UNQUOTE(JSON_EXTRACT(religious_info, '$.religion'))"),
+            { [Op.in]: religions }
+          )
+        );
+      }
+      if (caste) {
+        const castes = Array.isArray(caste) ? caste : [caste];
+        whereClause[Op.and] = whereClause[Op.and] || [];
+        whereClause[Op.and].push(
+          Sequelize.where(
+            Sequelize.literal("JSON_UNQUOTE(JSON_EXTRACT(religious_info, '$.caste'))"),
+            { [Op.in]: castes }
+          )
+        );
+      }
+      if (community) {
+        const communities = Array.isArray(community) ? community : [community];
+        whereClause[Op.and] = whereClause[Op.and] || [];
+        whereClause[Op.and].push(
+          Sequelize.where(
+            Sequelize.literal("JSON_UNQUOTE(JSON_EXTRACT(religious_info, '$.community'))"),
+            { [Op.in]: communities }
+          )
+        );
+      }
+
+      // Marital status filter (from personal_info in Profile model)
+      if (maritalStatus) {
+        const statuses = Array.isArray(maritalStatus) ? maritalStatus : [maritalStatus];
+        whereClause[Op.and] = whereClause[Op.and] || [];
+        whereClause[Op.and].push(
+          Sequelize.where(
+            Sequelize.literal("JSON_UNQUOTE(JSON_EXTRACT(personal_info, '$.marital_status'))"),
+            { [Op.in]: statuses }
+          )
+        );
+      }
+
+      // Education filter (from education_career_info in Profile model)
+      if (education) {
+        const educationLevels = Array.isArray(education) ? education : [education];
+        whereClause[Op.and] = whereClause[Op.and] || [];
+        whereClause[Op.and].push(
+          Sequelize.where(
+            Sequelize.literal("JSON_UNQUOTE(JSON_EXTRACT(education_career_info, '$.education'))"),
+            { [Op.in]: educationLevels }
+          )
+        );
+      }
+
+      // Occupation filter (from education_career_info in Profile model)
+      if (occupation) {
+        const occupations = Array.isArray(occupation) ? occupation : [occupation];
+        whereClause[Op.and] = whereClause[Op.and] || [];
+        whereClause[Op.and].push(
+          Sequelize.where(
+            Sequelize.literal("JSON_UNQUOTE(JSON_EXTRACT(education_career_info, '$.occupation'))"),
+            { [Op.in]: occupations }
+          )
+        );
+      }
+
+      // Annual income filter (from education_career_info in Profile model)
+      if (annualIncome) {
+        whereClause[Op.and] = whereClause[Op.and] || [];
+        whereClause[Op.and].push(
+          Sequelize.where(
+            Sequelize.literal("JSON_UNQUOTE(JSON_EXTRACT(education_career_info, '$.annual_income'))"),
+            annualIncome
+          )
+        );
+      }
+
+      // Diet filter (from lifestyle_info in Profile model)
+      if (diet) {
+        const diets = Array.isArray(diet) ? diet : [diet];
+        whereClause[Op.and] = whereClause[Op.and] || [];
+        whereClause[Op.and].push(
+          Sequelize.where(
+            Sequelize.literal("JSON_UNQUOTE(JSON_EXTRACT(lifestyle_info, '$.diet'))"),
+            { [Op.in]: diets }
+          )
+        );
+      }
+
+      // Complexion filter (from personal_info in Profile model)
+      if (complexion) {
+        const complexions = Array.isArray(complexion) ? complexion : [complexion];
+        whereClause[Op.and] = whereClause[Op.and] || [];
+        whereClause[Op.and].push(
+          Sequelize.where(
+            Sequelize.literal("JSON_UNQUOTE(JSON_EXTRACT(personal_info, '$.complexion'))"),
+            { [Op.in]: complexions }
+          )
+        );
+      }
+
+      // Body type filter (from personal_info in Profile model)
+      if (bodyType) {
+        const bodyTypes = Array.isArray(bodyType) ? bodyType : [bodyType];
+        whereClause[Op.and] = whereClause[Op.and] || [];
+        whereClause[Op.and].push(
+          Sequelize.where(
+            Sequelize.literal("JSON_UNQUOTE(JSON_EXTRACT(personal_info, '$.body_type'))"),
+            { [Op.in]: bodyTypes }
+          )
+        );
+      }
+
+      // Height filter (from personal_info in Profile model)
+      if (heightMin || heightMax) {
+        whereClause[Op.and] = whereClause[Op.and] || [];
+        if (heightMin && heightMax) {
+          whereClause[Op.and].push(
+            Sequelize.where(
+              Sequelize.literal("CAST(JSON_UNQUOTE(JSON_EXTRACT(personal_info, '$.height')) AS UNSIGNED)"),
+              { [Op.between]: [parseInt(heightMin), parseInt(heightMax)] }
+            )
+          );
+        } else if (heightMin) {
+          whereClause[Op.and].push(
+            Sequelize.where(
+              Sequelize.literal("CAST(JSON_UNQUOTE(JSON_EXTRACT(personal_info, '$.height')) AS UNSIGNED)"),
+              { [Op.gte]: parseInt(heightMin) }
+            )
+          );
+        } else if (heightMax) {
+          whereClause[Op.and].push(
+            Sequelize.where(
+              Sequelize.literal("CAST(JSON_UNQUOTE(JSON_EXTRACT(personal_info, '$.height')) AS UNSIGNED)"),
+              { [Op.lte]: parseInt(heightMax) }
+            )
+          );
+        }
       }
 
       const { count, rows: profiles } = await Profile.findAndCountAll({

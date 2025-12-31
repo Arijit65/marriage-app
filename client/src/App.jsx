@@ -22,6 +22,7 @@ import ProtectedRoute from "./pages/Routes/ProtectedRoutes";
 import PaymentCheckout from "./Components/PaymentCheckout";
 import Dashboard from "./pages/Profile/Dashboard";
 import EditAd from "./pages/Profile/EditAd";
+import EditProfile from "./pages/Profile/EditProfile";
 import BlogPage from "./pages/Blog/Blog";
 import BlogDetail from "./pages/Blog/BlogDetail";
 import PostRegistrationMessage from "./pages/Auth/PostRegistrationMessage";
@@ -57,6 +58,11 @@ function App() {
         <Route path="/edit-ad" element={
           <ProtectedRoute>
             <EditAd />
+          </ProtectedRoute>
+        } />
+        <Route path="/edit-profile" element={
+          <ProtectedRoute>
+            <EditProfile />
           </ProtectedRoute>
         } />
         

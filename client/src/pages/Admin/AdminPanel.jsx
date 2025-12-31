@@ -24,6 +24,8 @@ import { useNavigate } from 'react-router-dom';
 import { useApi } from '../../context/ApiContext';
 import MemberListing from './MemberListing';
 import BlogManagement from './BlogManagement';
+import UserView from './UserView';
+import UserPayment from './UserPayment';
 
 const AdminDashboard = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -35,6 +37,10 @@ const AdminDashboard = () => {
   const [selectedMemberType, setSelectedMemberType] = useState('active');
   const [currentView, setCurrentView] = useState('memberListing');
   const [userStats, setUserStats] = useState({});
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [showUserView, setShowUserView] = useState(false);
+  const [selectedPaymentUser, setSelectedPaymentUser] = useState(null);
+  const [showUserPayment, setShowUserPayment] = useState(false);
   const { adminUser, adminLogout, adminToken } = useAuth();
   const { adminApi_methods } = useApi();
   const navigate = useNavigate();
@@ -181,6 +187,26 @@ const AdminDashboard = () => {
     }));
   };
 
+  const handleViewUser = (user) => {
+    setSelectedUser(user);
+    setShowUserView(true);
+  };
+
+  const handleCloseUserView = () => {
+    setShowUserView(false);
+    setSelectedUser(null);
+  };
+
+  const handleViewPayment = (user) => {
+    setSelectedPaymentUser(user);
+    setShowUserPayment(true);
+  };
+
+  const handleCloseUserPayment = () => {
+    setShowUserPayment(false);
+    setSelectedPaymentUser(null);
+  };
+
   return (
     <div className="flex h-screen bg-gray-100">
       {/* Sidebar */}
@@ -297,7 +323,11 @@ const AdminDashboard = () => {
         {/* Content Area */}
         <main className="flex-1 overflow-auto">
           {currentView === 'memberListing' && (
-            <MemberListing memberType={selectedMemberType} />
+            <MemberListing 
+              memberType={selectedMemberType} 
+              onViewUser={handleViewUser}
+              onViewPayment={handleViewPayment}
+            />
           )}
           {currentView === 'blogManagement' && (
             <BlogManagement />
@@ -319,6 +349,16 @@ const AdminDashboard = () => {
           className="fixed inset-0 z-40 bg-black bg-opacity-25 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
+      )}
+
+      {/* User View Modal */}
+      {showUserView && selectedUser && (
+        <UserView user={selectedUser} onClose={handleCloseUserView} />
+      )}
+
+      {/* User Payment Modal */}
+      {showUserPayment && selectedPaymentUser && (
+        <UserPayment user={selectedPaymentUser} onClose={handleCloseUserPayment} />
       )}
     </div>
   );

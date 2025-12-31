@@ -547,6 +547,77 @@ class UserController {
       next(err);
     }
   }
+
+  // GET /api/admin/users/:userId/payments (admin)
+  async getUserPayments(req, res, next) {
+    try {
+      const { userId } = req.params;
+      const { page = 1, limit = 10 } = req.query;
+
+      const skip = (page - 1) * limit;
+
+      // Import Payment model
+      const { Payment } = require('../models');
+
+      // Verify user exists
+      const user = await User.findByPk(userId, {
+        attributes: ['id', 'name', 'email', 'phone_number']
+      });
+      
+      if (!user) {
+        throw new AppError('User not found', 404);
+      }
+
+      const payments = await Payment.findAll({ 
+        where: { userId },
+        attributes: [
+          'id', 'userId', 'planId', 'amount', 'currency',
+          'razorpayOrderId', 'razorpayPaymentId', 'razorpaySignature',
+          'status', 'paymentMethod', 'receipt', 'notes', 'metadata',
+          'created_at', 'updated_at'
+        ],
+        order: [['created_at', 'DESC']],
+        offset: skip,
+        limit: parseInt(limit)
+      });
+
+      const total = await Payment.count({ where: { userId } });
+
+      res.json({
+        success: true,
+        data: {
+          user: {
+            id: user.id,
+            name: user.name,
+            email: user.email
+          },
+          payments: payments.map(payment => ({
+            id: payment.id,
+            amount: payment.getFormattedAmount(),
+            status: payment.status,
+            currency: payment.currency,
+            planId: payment.planId,
+            paymentMethod: payment.paymentMethod,
+            receipt: payment.receipt,
+            razorpayOrderId: payment.razorpayOrderId,
+            razorpayPaymentId: payment.razorpayPaymentId,
+            metadata: payment.metadata,
+            createdAt: payment.created_at,
+            updatedAt: payment.updated_at
+          })),
+          pagination: {
+            currentPage: parseInt(page),
+            totalPages: Math.ceil(total / limit),
+            totalItems: total,
+            itemsPerPage: parseInt(limit)
+          }
+        }
+      });
+
+    } catch (err) {
+      next(err);
+    }
+  }
 }
 
 module.exports = new UserController();

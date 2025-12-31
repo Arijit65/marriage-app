@@ -1,8 +1,13 @@
 
 import { useState } from "react"
+import { useNavigate } from "react-router-dom"
 import { Search, Heart, Users, Star } from "lucide-react"
+import { flowers, mp_logo } from '../assets/assets'
+import { useAuth } from '../context/AuthContext'
 
 const HeroRegistration = () => {
+  const navigate = useNavigate()
+  const { isAuthenticated } = useAuth()
   const [formData, setFormData] = useState({
     gender: "",
     phone: "",
@@ -10,11 +15,67 @@ const HeroRegistration = () => {
     ageTo: "",
     religion: "",
     searchId: "",
-    isBride: false,
+    searchGender: "bride", // Changed from isBride to radio button selection
   })
 
   const handleInputChange = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
+  }
+
+  const handleRegisterClick = () => {
+    // Navigate to registration page with pre-filled data
+    navigate('/register', { 
+      state: { 
+        prefilledData: {
+          gender: formData.gender === "bride" ? "Female" : formData.gender === "groom" ? "Male" : "",
+          phone: formData.phone,
+          religion: formData.religion ? formData.religion.charAt(0).toUpperCase() + formData.religion.slice(1) : ""
+        }
+      } 
+    })
+  }
+
+  // Handle Quick ID Search
+  const handleQuickSearch = () => {
+    if (!formData.searchId.trim()) {
+      alert('Please enter a Profile ID');
+      return;
+    }
+    
+    // Navigate to individual profile page
+    navigate(`/profile/${formData.searchId.trim()}`);
+  }
+
+  // Handle Advanced Search
+  const handleAdvancedSearch = () => {
+    // Build filter parameters from form data
+    const filters = {};
+    
+    if (formData.searchGender) {
+      filters.profileFor = formData.searchGender;
+    }
+    
+    if (formData.ageFrom) {
+      filters.ageFrom = formData.ageFrom;
+    }
+    
+    if (formData.ageTo) {
+      filters.ageTo = formData.ageTo;
+    }
+    
+    if (formData.religion) {
+      filters.religion = [formData.religion.charAt(0).toUpperCase() + formData.religion.slice(1)];
+    }
+    
+    // Save to localStorage for ProfileFilters to pick up
+    try {
+      localStorage.setItem('heroSearchFilters', JSON.stringify(filters));
+    } catch (error) {
+      console.error('Error saving search filters:', error);
+    }
+    
+    // Navigate to profiles page with filters as state
+    navigate('/profiles', { state: { appliedFilters: filters } });
   }
 
   return (
@@ -25,7 +86,7 @@ const HeroRegistration = () => {
           className="w-full h-full bg-cover bg-center bg-no-repeat"
           style={{
             backgroundImage:
-              "url(/src/assets/flowers.jpg)",
+              `url(${flowers})`,
             filter: "blur(8px)",
             transform: "scale(1.1)",
           }}
@@ -45,8 +106,9 @@ const HeroRegistration = () => {
       {/* Main Content */}
       <div className="relative z-10 w-full h-full flex items-center px-4 sm:px-6 lg:px-8 py-6 lg:py-4">
         <div className="max-w-7xl mx-auto w-full">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-8 items-center lg:items-center">
-            {/* Left: Enhanced Registration Card */}
+          <div className={`grid grid-cols-1 ${!isAuthenticated ? 'lg:grid-cols-2' : 'lg:grid-cols-1'} gap-8 lg:gap-8 items-center ${!isAuthenticated ? 'lg:items-center' : 'lg:items-center justify-center'}`}>
+            {/* Left: Enhanced Registration Card - Only show when NOT authenticated */}
+            {!isAuthenticated && (
             <div className="flex justify-center lg:justify-start order-1 lg:order-1">
               <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden transform hover:scale-[1.02] transition-all duration-300">
                 {/* Enhanced Header with Gradient */}
@@ -58,7 +120,7 @@ const HeroRegistration = () => {
                   <div className="relative z-10">
                     <div className="flex justify-center mb-2">
                       <div className="p-1 bg-white/20 backdrop-blur-sm rounded-xl shadow-lg">
-                        <img src="/src/assets/mp_logo.png" alt="MP Logo" className="w-8 h-8 object-contain" />
+                        <img src={mp_logo} alt="MP Logo" className="w-8 h-8 object-contain" />
                       </div>
                     </div>
                     <h3 className="text-xl font-bold tracking-wide mb-1">Free Registration</h3>
@@ -142,7 +204,11 @@ const HeroRegistration = () => {
                   </div>
 
                   {/* Enhanced Register Button */}
-                  <button className="w-full bg-gradient-to-r from-rose-500 via-red-600 to-pink-600 hover:from-rose-600 hover:via-red-700 hover:to-pink-700 text-white py-3 rounded-xl font-bold text-sm transition-all duration-300 transform hover:scale-[1.02] hover:shadow-2xl shadow-lg active:scale-95">
+                  <button 
+                    type="button"
+                    onClick={handleRegisterClick}
+                    className="w-full bg-gradient-to-r from-rose-500 via-red-600 to-pink-600 hover:from-rose-600 hover:via-red-700 hover:to-pink-700 text-white py-3 rounded-xl font-bold text-sm transition-all duration-300 transform hover:scale-[1.02] hover:shadow-2xl shadow-lg active:scale-95"
+                  >
                     Register Now - It's Free!
                   </button>
 
@@ -162,11 +228,12 @@ const HeroRegistration = () => {
                 </div>
               </div>
             </div>
+            )}
 
             {/* Right: Enhanced Promo Text & Search */}
-            <div className="flex flex-col justify-center space-y-4 lg:space-y-6 order-2 lg:order-2 px-2 lg:px-0">
+            <div className={`flex flex-col justify-center space-y-4 lg:space-y-6 order-2 lg:order-2 px-2 lg:px-0 ${isAuthenticated ? 'max-w-4xl mx-auto' : ''}`}>
               {/* Enhanced Headline Block */}
-              <div className="space-y-2 lg:space-y-3 text-center lg:text-left">
+              <div className={`space-y-2 lg:space-y-3 ${isAuthenticated ? 'text-center' : 'text-center lg:text-left'}`}>
                 <div className="inline-flex items-center gap-2 bg-red-500/20 backdrop-blur-sm px-3 py-1.5 rounded-full border border-red-400/30">
                   <div className="w-1.5 h-1.5 bg-red-400 rounded-full animate-pulse"></div>
                   <p className="text-red-300 font-semibold text-sm">Advertise</p>
@@ -177,7 +244,7 @@ const HeroRegistration = () => {
                   <span className="bg-gradient-to-r from-red-400 to-red-600 bg-clip-text text-transparent">Video</span>
                 </h2>
 
-                <div className="flex items-center justify-center lg:justify-start gap-3">
+                <div className={`flex items-center ${isAuthenticated ? 'justify-center' : 'justify-center lg:justify-start'} gap-3`}>
                   <div className="h-px bg-gradient-to-r from-transparent to-red-400 flex-1 max-w-16"></div>
                   <p className="text-red-400 font-extrabold text-3xl">&</p>
                   <div className="h-px bg-gradient-to-l from-transparent to-red-400 flex-1 max-w-16"></div>
@@ -201,10 +268,14 @@ const HeroRegistration = () => {
                       type="text"
                       value={formData.searchId}
                       onChange={(e) => handleInputChange("searchId", e.target.value)}
-                      placeholder="Enter Profile ID"
+                      onKeyPress={(e) => e.key === 'Enter' && handleQuickSearch()}
+                      placeholder="Enter Profile ID (e.g., B00009-F)"
                       className="flex-1 border-2 border-gray-300 rounded-xl sm:rounded-l-xl sm:rounded-r-none px-3 py-2 text-sm focus:outline-none focus:border-red-500 focus:ring-2 focus:ring-red-500/20 transition-all duration-200"
                     />
-                    <button className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white px-6 py-2 rounded-xl sm:rounded-r-xl sm:rounded-l-none text-sm font-semibold transition-all duration-300 transform hover:scale-105">
+                    <button 
+                      onClick={handleQuickSearch}
+                      className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white px-6 py-2 rounded-xl sm:rounded-r-xl sm:rounded-l-none text-sm font-semibold transition-all duration-300 transform hover:scale-105"
+                    >
                       Go
                     </button>
                   </div>
@@ -219,16 +290,31 @@ const HeroRegistration = () => {
 
                   {/* Search Filters */}
                   <div className="grid grid-cols-1 gap-2 lg:grid-cols-2 lg:gap-2">
-                    {/* Bride Checkbox */}
-                    <label className="flex items-center space-x-2 text-white cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={formData.isBride}
-                        onChange={(e) => handleInputChange("isBride", e.target.checked)}
-                        className="w-4 h-4 text-red-600 bg-white border-gray-300 rounded focus:ring-red-500 focus:ring-2"
-                      />
-                      <span className="font-medium text-sm">Bride</span>
-                    </label>
+                    {/* Gender Selection - Radio Buttons */}
+                    <div className="flex items-center space-x-4 text-white">
+                      <label className="flex items-center space-x-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="searchGender"
+                          value="bride"
+                          checked={formData.searchGender === "bride"}
+                          onChange={(e) => handleInputChange("searchGender", e.target.value)}
+                          className="w-4 h-4 text-red-600 bg-white border-gray-300 focus:ring-red-500 focus:ring-2"
+                        />
+                        <span className="font-medium text-sm">👰 Bride</span>
+                      </label>
+                      <label className="flex items-center space-x-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="searchGender"
+                          value="groom"
+                          checked={formData.searchGender === "groom"}
+                          onChange={(e) => handleInputChange("searchGender", e.target.value)}
+                          className="w-4 h-4 text-red-600 bg-white border-gray-300 focus:ring-red-500 focus:ring-2"
+                        />
+                        <span className="font-medium text-sm">🤵 Groom</span>
+                      </label>
+                    </div>
 
                     {/* Age Range */}
                     <div className="flex gap-2">
@@ -237,6 +323,8 @@ const HeroRegistration = () => {
                         value={formData.ageFrom}
                         onChange={(e) => handleInputChange("ageFrom", e.target.value)}
                         placeholder="Age From"
+                        min="18"
+                        max="100"
                         className="w-full border-2 border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:border-red-500 focus:ring-2 focus:ring-red-500/20 transition-all duration-200"
                       />
                       <input
@@ -244,6 +332,8 @@ const HeroRegistration = () => {
                         value={formData.ageTo}
                         onChange={(e) => handleInputChange("ageTo", e.target.value)}
                         placeholder="Age To"
+                        min="18"
+                        max="100"
                         className="w-full border-2 border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:border-red-500 focus:ring-2 focus:ring-red-500/20 transition-all duration-200"
                       />
                     </div>
@@ -266,7 +356,10 @@ const HeroRegistration = () => {
                     </select>
 
                     {/* Search Button */}
-                    <button className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white px-6 py-1.5 rounded-lg font-semibold transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl whitespace-nowrap text-sm">
+                    <button 
+                      onClick={handleAdvancedSearch}
+                      className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white px-6 py-1.5 rounded-lg font-semibold transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl whitespace-nowrap text-sm"
+                    >
                       Search Matches
                     </button>
                   </div>

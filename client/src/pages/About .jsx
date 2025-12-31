@@ -67,57 +67,46 @@ const About = () => {
           </div>
 
           {/* Right side - Image */}
-          <div className="min-h-screen bg-white flex items-center justify-center p-6">
-            {/* Outer frame to control overall aspect on wide screens */}
-            <div className="grid grid-cols-[1fr,0.72fr] grid-rows-[auto,auto] gap-6 max-w-5xl w-full">
-              {/* Top-left: large square */}
-              <div className="row-span-1">
-                <div className="relative w-full">
-                  <div className="aspect-square overflow-hidden rounded">
-                    <img
-                      src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR9SRRmhH4X5N2e4QalcoxVbzYsD44C-sQv-w&s"
-                      alt="placeholder large"
-                      className="h-full w-full object-cover"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Top-right: small square, aligned to top of large */}
-              <div className="row-span-1">
-                <div className="aspect-square overflow-hidden rounded">
+          <div className="relative">
+            {/* Modern image collage layout */}
+            <div className="grid grid-cols-2 gap-4">
+              {/* Top-left: Large main image */}
+              <div className="col-span-1 row-span-2">
+                <div className="relative h-full overflow-hidden rounded-2xl shadow-lg">
                   <img
-                    src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTc9APxkj0xClmrU3PpMZglHQkx446nQPG6lA&s"
-                    alt="placeholder small square"
-                    className="h-full w-full object-cover"
+                    src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR9SRRmhH4X5N2e4QalcoxVbzYsD44C-sQv-w&s"
+                    alt="Happy couple"
+                    className="h-full w-full object-cover hover:scale-105 transition-transform duration-500"
                   />
                 </div>
               </div>
 
-              {/* Bottom-left: small portrait-ish rectangle centered under the big tile */}
-              <div className="-mt-28 ml-20 w-48 max-w-[55%] justify-self-start">
-                {/* The negative top margin pulls this tile up to sit between the bottom edges,
-              and the left margin insets it to mirror the screenshot spacing. */}
-                <div className="aspect-[4/5] overflow-hidden rounded shadow-sm">
+              {/* Top-right: Medium image */}
+              <div className="col-span-1">
+                <div className="relative h-48 overflow-hidden rounded-2xl shadow-lg">
                   <img
                     src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTc9APxkj0xClmrU3PpMZglHQkx446nQPG6lA&s"
-                    alt="placeholder bottom-left"
-                    className="h-full w-full object-cover"
+                    alt="Wedding celebration"
+                    className="h-full w-full object-cover hover:scale-105 transition-transform duration-500"
                   />
                 </div>
               </div>
 
-              {/* Bottom-right: short wide rectangle under the right column */}
-              <div className="-mt-10">
-                <div className="aspect-[5/4] overflow-hidden rounded">
+              {/* Bottom-right: Medium image */}
+              <div className="col-span-1">
+                <div className="relative h-48 overflow-hidden rounded-2xl shadow-lg">
                   <img
-                    src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTc9APxkj0xClmrU3PpMZglHQkx446nQPG6lA&s"
-                    alt="placeholder bottom-right"
-                    className="h-full w-full object-cover"
+                    src="https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=400&q=80"
+                    alt="Traditional ceremony"
+                    className="h-full w-full object-cover hover:scale-105 transition-transform duration-500"
                   />
                 </div>
               </div>
             </div>
+
+            {/* Decorative element */}
+            <div className="absolute -bottom-6 -right-6 w-32 h-32 bg-red-100 rounded-full opacity-50 -z-10"></div>
+            <div className="absolute -top-6 -left-6 w-24 h-24 bg-red-200 rounded-full opacity-30 -z-10"></div>
           </div>
 
 

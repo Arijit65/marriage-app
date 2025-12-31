@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Eye, Edit, Trash2 } from 'lucide-react';
 import { useApi } from '../../context/ApiContext';
 
-const MemberListing = ({ memberType = 'active' }) => {
+const MemberListing = ({ memberType = 'active', onViewUser, onViewPayment }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [entriesPerPage, setEntriesPerPage] = useState(10);
   const [searchTerm, setSearchTerm] = useState('');
@@ -178,25 +178,28 @@ const MemberListing = ({ memberType = 'active' }) => {
   };
 
   const handleView = (member) => {
-    console.log('View member:', member);
-    // TODO: Navigate to member details page
+    if (onViewUser) {
+      onViewUser(member);
+    }
   };
 
   const handlePayment = (member) => {
-    console.log('Handle payment for member:', member);
-    // TODO: Open payment/subscription modal
+    if (onViewPayment) {
+      onViewPayment(member);
+    }
   };
 
   const handleDelete = async (member) => {
-    if (!confirm(`Are you sure you want to delete user ${member.name}?`)) {
+    if (!window.confirm(`Are you sure you want to delete user ${member.name}?\n\nThis action cannot be undone and will permanently remove:\n- User profile\n- All user data\n- Payment history\n\nAre you absolutely sure?`)) {
       return;
     }
 
     try {
-      const response = await userApi.deleteUser(member.id);
+      const response = await adminApi_methods.deleteUser(member.id);
       if (response.success) {
         // Refresh the user list
         await fetchUsers();
+        await fetchUserStats();
         alert('User deleted successfully');
       } else {
         alert('Failed to delete user: ' + response.error);
@@ -209,20 +212,21 @@ const MemberListing = ({ memberType = 'active' }) => {
   const handleStatusChange = async (member, newStatus) => {
     try {
       let response;
+      let reason = '';
 
       switch (newStatus) {
         case 'activate':
-          response = await userApi.activateUser(member.id);
+          if (!window.confirm(`Activate user ${member.name}?`)) return;
+          response = await adminApi_methods.updateUserStatus(member.id, 'active', 'Activated by admin');
           break;
         case 'suspend':
-          const reason = prompt('Please enter suspension reason:');
+          reason = prompt('Please enter suspension reason:');
           if (!reason) return;
-          response = await userApi.suspendUser(member.id, reason, null);
+          response = await adminApi_methods.updateUserStatus(member.id, 'suspended', reason);
           break;
-        case 'block':
-          const blockReason = prompt('Please enter block reason:');
-          if (!blockReason) return;
-          response = await userApi.blockUser(member.id, blockReason, null);
+        case 'inactive':
+          if (!window.confirm(`Set user ${member.name} to inactive?`)) return;
+          response = await adminApi_methods.updateUserStatus(member.id, 'inactive', 'Set to inactive by admin');
           break;
         default:
           return;
@@ -230,7 +234,8 @@ const MemberListing = ({ memberType = 'active' }) => {
 
       if (response.success) {
         await fetchUsers();
-        alert(`User ${newStatus}d successfully`);
+        await fetchUserStats();
+        alert(`User ${newStatus === 'activate' ? 'activated' : newStatus === 'suspend' ? 'suspended' : 'updated'} successfully`);
       } else {
         alert(`Failed to ${newStatus} user: ` + response.error);
       }

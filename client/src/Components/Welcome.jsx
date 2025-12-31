@@ -1,7 +1,9 @@
 import React from 'react';
-//import sampleImg from '@/assets/welcome.jpg'; // ⬅️ replace with the real path or URL
+import { useNavigate } from 'react-router-dom';
+import { wedding_hands } from '../assets/assets';
 
 const WelcomeSection = () => {
+  const navigate = useNavigate();
   return (
     <section className="w-full px-6 py-12">
       <div className="max-w-6xl mx-auto grid lg:grid-cols-2 gap-12 items-center">
@@ -31,7 +33,10 @@ const WelcomeSection = () => {
             interactions lead the way to your happily ever after.
           </p>
 
-          <button className="bg-red-600 hover:bg-red-700 text-white px-8 py-3 rounded-full font-semibold transition-colors">
+          <button 
+            onClick={() => navigate('/about')}
+            className="bg-red-600 hover:bg-red-700 text-white px-8 py-3 rounded-full font-semibold transition-colors"
+          >
             Read More
           </button>
         </div>
@@ -39,7 +44,7 @@ const WelcomeSection = () => {
         {/* ───────────── Right: Image ───────────── */}
         <div className="flex justify-center lg:justify-end">
           <img
-            src= 'https://www.marriagepaper.com/assets/images/welcome.jpg'
+            src= {wedding_hands}
             alt="Traditional wedding scene"
             className="w-80 lg:w-96 rounded-lg object-cover shadow"
           />

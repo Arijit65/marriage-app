@@ -19,6 +19,7 @@ router.post('/logout', adminController.logout);
 // User management routes (admin access to user functions)
 router.get('/users/stats', userController.getUserStats);
 router.get('/users', userController.getUsers);
+router.get('/users/:userId/payments', userController.getUserPayments);
 router.put('/users/:userId/status', userController.updateUserStatus);
 router.delete('/users/:userId', userController.deleteUser);
 
